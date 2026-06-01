@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0060)https://yossivogel2.github.io/workshop-inventory/t.html?id=1 -->
+<html lang="he" dir="rtl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>מלאי בית מלאכה</title>
 <style>
@@ -71,33 +71,33 @@
 </head>
 <body>
 
-<div class="screen" id="screenLoading">
+<div class="screen hidden" id="screenLoading">
   <div class="spinner"></div>
   <div style="color:var(--text2);font-size:15px">טוען פריט...</div>
 </div>
 
-<div class="screen hidden" id="screenItem">
-  <div id="itemImageWrap"></div>
-  <div class="item-name" id="itemName">—</div>
-  <div class="item-desc" id="itemDesc">—</div>
-  <div class="item-cat" id="itemCat">—</div>
+<div class="screen" id="screenItem">
+  <div id="itemImageWrap"><img class="item-img" src="./t_files/IMG20260601161434.jpg" onerror="this.parentElement.innerHTML=&#39;&lt;div class=item-emoji&gt;💧&lt;/div&gt;&#39;"></div>
+  <div class="item-name" id="itemName">פילטר מים</div>
+  <div class="item-desc" id="itemDesc">פילטר סטנדרטי</div>
+  <div class="item-cat" id="itemCat">מכונת קרח</div>
 
-  <div class="user-badge" id="userBadge">👤 <span id="userName">—</span></div>
+  <div class="user-badge" id="userBadge" style="display: none;">👤 <span id="userName">—</span></div>
 
   <div class="stock-info">
     <div>
-      <div class="stock-num" id="stockNum">—</div>
+      <div class="stock-num ok" id="stockNum">9</div>
       <div class="stock-label">יחידות במלאי</div>
     </div>
     <div class="stock-right">
       <div style="font-size:12px;color:var(--text2)">מינימום</div>
-      <div style="font-size:20px;font-weight:700;color:var(--text2)" id="stockMin">—</div>
+      <div style="font-size:20px;font-weight:700;color:var(--text2)" id="stockMin">4</div>
     </div>
   </div>
 
   <div class="form-group hidden" id="customerWrap">
     <label>שם לקוח (חובה)</label>
-    <input type="text" id="customerInput" placeholder="הקלד שם לקוח..." />
+    <input type="text" id="customerInput" placeholder="הקלד שם לקוח...">
   </div>
 
   <button class="btn-take active" id="btnTake" onclick="takePart()">✓ לקחתי</button>
@@ -260,5 +260,6 @@ function showError(title, msg) {
   show('screenError');
 }
 </script>
-</body>
-</html>
+
+
+</body></html>
