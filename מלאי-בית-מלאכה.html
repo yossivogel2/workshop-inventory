@@ -106,6 +106,8 @@
   .loading-overlay.show { display:flex; }
   .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
+  .log-filter-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:7px 18px; color:var(--text2); font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+  .log-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
   .nfc-url-box { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--text2); word-break:break-all; margin-top:8px; }
   @media(max-width:600px) { main{padding:16px} .form-row{grid-template-columns:1fr} .stats{grid-template-columns:repeat(2,1fr)} }
   .login-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
@@ -171,7 +173,10 @@
     <!-- LOG -->
     <div class="tab-content" id="tab-log">
       <div class="card">
-        <div class="card-title">יומן פעילות</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="log-filter-btn active" id="filterFree" onclick="setLogFilter('free',this)">חופשי</button>
+          <button class="log-filter-btn" id="filterManaged" onclick="setLogFilter('managed',this)">מנוהל</button>
+        </div>
         <div id="logList"><div class="empty"><div class="empty-icon">📋</div>טוען...</div></div>
       </div>
     </div>
@@ -265,6 +270,7 @@ const TECH_BASE = 'https://yossivogel2.github.io/workshop-inventory/טכנאי.h
 
 let items = [];
 let logData = [];
+let logFilter = 'free';
 let restockItemId = null;
 let nfcItemId = null;
 
@@ -392,7 +398,9 @@ function formatTime(raw) {
 function renderLog() {
   const el = document.getElementById('logList');
   if (!logData.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>אין פעילות עדיין</div>'; return; }
-  el.innerHTML = logData.map(l => {
+  const filtered = logData.filter(l => (l[3] || 'free') === logFilter);
+  if (!filtered.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>אין רשומות</div>'; return; }
+  el.innerHTML = filtered.map(l => {
     const date = formatDate(l[0]);
     const time = formatTime(l[1]);
     const itemName = l[2] || '';
@@ -415,6 +423,13 @@ function renderLog() {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+function setLogFilter(type, btn) {
+  logFilter = type;
+  document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
 }
 
 // ---- ALERTS ----
