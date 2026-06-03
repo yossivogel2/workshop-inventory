@@ -223,6 +223,7 @@
     <div class="form-group"><label>תיאור</label><input type="text" id="newDesc" placeholder="תיאור קצר..." /></div>
     <div class="form-group"><label>קטגוריה</label><input type="text" id="newCategory" placeholder="מכונת קרח, חדר קירור..." /></div>
     <div class="form-group"><label>אמוג'י</label><input type="text" id="newEmoji" placeholder="❄️" maxlength="2" /></div>
+    <div class="form-group"><label>מק"ט</label><input type="text" id="newSku" placeholder="מספר קטלוגי..." /></div>
     <div class="form-group"><label>קישור תמונה (מ-imgbb.com)</label><input type="text" id="newImage" placeholder="https://i.ibb.co/..." /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeAddModal()">ביטול</button>
@@ -234,8 +235,10 @@
 <!-- RESTOCK MODAL -->
 <div class="modal-overlay" id="restockModal">
   <div class="modal">
-    <div class="modal-title">עדכון מלאי – <span id="restockItemName"></span></div>
+    <div class="modal-title">עדכון פריט – <span id="restockItemName"></span></div>
     <div class="form-group"><label>כמות חדשה</label><input type="number" id="restockQty" min="0" /></div>
+    <div class="form-group"><label>מק"ט</label><input type="text" id="restockSku" placeholder="מספר קטלוגי..." /></div>
+    <div class="form-group"><label>קישור תמונה</label><input type="text" id="restockImage" placeholder="https://i.ibb.co/..." /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeRestockModal()">ביטול</button>
       <button class="btn btn-success" onclick="confirmRestock()">עדכן</button>
@@ -265,7 +268,7 @@
 <div class="toast" id="toast">✓ <span id="toastMsg"></span></div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEHjjGDnBabN6Vc2XBHvxFfN70Zz9fwhSrLShTG5RHauCwBdYWcuDXyhteTM9kCe8KmA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIjZftSfeeJywHo8MvtLewrOo48i52fffRm3-bsq3Eb9-Njr4-ueIpdnqbEfQx_EI_XQ/exec';
 // דף טכנאי
 const TECH_BASE = 'https://yossivogel2.github.io/workshop-inventory/טכנאי.html';
 
@@ -289,7 +292,8 @@ async function loadItems() {
     items = raw.slice(1).map(r => ({
       id: r[0], name: r[1], type: r[2], desc: r[3],
       category: r[4], qty: parseInt(r[5]) || 0,
-      min: parseInt(r[6]) || 3, emoji: r[7] || '📦'
+      min: parseInt(r[6]) || 3, emoji: r[7] || '📦',
+      image: r[8] || '', sku: r[9] || ''
     }));
     renderAll();
     btn.textContent = '✓ מעודכן';
@@ -334,7 +338,7 @@ function renderInventory() {
     ? '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:32px">אין פריטים</td></tr>'
     : filtered.map(item => `
       <tr>
-        <td><span style="margin-left:8px">${item.emoji}</span><strong>${item.name}</strong><br><span style="color:var(--text3);font-size:12px">${item.category}</span></td>
+        <td><span style="margin-left:8px">${item.emoji}</span><strong>${item.name}</strong><br><span style="color:var(--text3);font-size:12px">${item.category}</span>${item.sku ? '<br><span style="color:var(--text3);font-size:11px">מק&quot;ט: '+item.sku+'</span>' : ''}</td>
         <td><span class="type-badge ${item.type}">${item.type==='free'?'חופשי':'מנוהל'}</span></td>
         <td style="font-weight:700;font-size:16px">${item.qty}</td>
         <td style="color:var(--text2)">${item.min}</td>
@@ -480,16 +484,17 @@ async function addItem() {
     desc: document.getElementById('newDesc').value.trim()||name,
     category: document.getElementById('newCategory').value.trim()||'כללי',
     emoji: document.getElementById('newEmoji').value.trim()||'📦',
+    sku: document.getElementById('newSku').value.trim()||'',
     image: document.getElementById('newImage').value.trim()||'',
   };
   showLoading(true);
   try {
-    await fetch(`${SCRIPT_URL}?action=addItem&id=${newItem.id}&name=${encodeURIComponent(newItem.name)}&type=${newItem.type}&desc=${encodeURIComponent(newItem.desc)}&category=${encodeURIComponent(newItem.category)}&qty=${newItem.qty}&min=${newItem.min}&emoji=${encodeURIComponent(newItem.emoji)}`);
+    await fetch(`${SCRIPT_URL}?action=addItem&id=${newItem.id}&name=${encodeURIComponent(newItem.name)}&type=${newItem.type}&desc=${encodeURIComponent(newItem.desc)}&category=${encodeURIComponent(newItem.category)}&qty=${newItem.qty}&min=${newItem.min}&emoji=${encodeURIComponent(newItem.emoji)}&image=${encodeURIComponent(newItem.image||'')}&sku=${encodeURIComponent(newItem.sku||'')}`);
     items.push(newItem);
     closeAddModal();
     renderAll();
     showToast('פריט נוסף בהצלחה');
-    ['newName','newDesc','newCategory','newEmoji','newImage'].forEach(id => document.getElementById(id).value='');
+    ['newName','newDesc','newCategory','newEmoji','newSku','newImage'].forEach(id => document.getElementById(id).value='');
     document.getElementById('newQty').value=10; document.getElementById('newMin').value=3;
   } catch(e) { showToast('שגיאה בהוספה', true); }
   showLoading(false);
@@ -501,19 +506,25 @@ function openRestock(id) {
   const item = items.find(i => i.id==id);
   document.getElementById('restockItemName').textContent = item.name;
   document.getElementById('restockQty').value = item.qty;
+  document.getElementById('restockSku').value = item.sku || '';
+  document.getElementById('restockImage').value = item.image || '';
   document.getElementById('restockModal').classList.add('show');
 }
 function closeRestockModal() { document.getElementById('restockModal').classList.remove('show'); }
 async function confirmRestock() {
   const item = items.find(i => i.id==restockItemId);
   const qty = parseInt(document.getElementById('restockQty').value)||0;
+  const sku = document.getElementById('restockSku').value.trim();
+  const image = document.getElementById('restockImage').value.trim();
   showLoading(true);
   try {
-    await fetch(`${SCRIPT_URL}?action=updateQty&id=${item.id}&qty=${qty}`);
+    await fetch(`${SCRIPT_URL}?action=updateItem&id=${item.id}&qty=${qty}&sku=${encodeURIComponent(sku)}&image=${encodeURIComponent(image)}`);
     item.qty = qty;
+    item.sku = sku;
+    item.image = image;
     closeRestockModal();
     renderAll();
-    showToast(`מלאי עודכן: ${item.name}`);
+    showToast(`פריט עודכן: ${item.name}`);
   } catch(e) { showToast('שגיאה בעדכון', true); }
   showLoading(false);
 }
