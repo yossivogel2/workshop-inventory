@@ -223,6 +223,7 @@
     <div class="form-group"><label>תיאור</label><input type="text" id="newDesc" placeholder="תיאור קצר..." /></div>
     <div class="form-group"><label>קטגוריה</label><input type="text" id="newCategory" placeholder="מכונת קרח, חדר קירור..." /></div>
     <div class="form-group"><label>אמוג'י</label><input type="text" id="newEmoji" placeholder="❄️" maxlength="2" /></div>
+    <div class="form-group"><label>קישור תמונה (מ-imgbb.com)</label><input type="text" id="newImage" placeholder="https://i.ibb.co/..." /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeAddModal()">ביטול</button>
       <button class="btn btn-primary" onclick="addItem()">הוסף</button>
@@ -479,6 +480,7 @@ async function addItem() {
     desc: document.getElementById('newDesc').value.trim()||name,
     category: document.getElementById('newCategory').value.trim()||'כללי',
     emoji: document.getElementById('newEmoji').value.trim()||'📦',
+    image: document.getElementById('newImage').value.trim()||'',
   };
   showLoading(true);
   try {
@@ -487,7 +489,7 @@ async function addItem() {
     closeAddModal();
     renderAll();
     showToast('פריט נוסף בהצלחה');
-    ['newName','newDesc','newCategory','newEmoji'].forEach(id => document.getElementById(id).value='');
+    ['newName','newDesc','newCategory','newEmoji','newImage'].forEach(id => document.getElementById(id).value='');
     document.getElementById('newQty').value=10; document.getElementById('newMin').value=3;
   } catch(e) { showToast('שגיאה בהוספה', true); }
   showLoading(false);
@@ -534,7 +536,7 @@ function showNfc(id) {
   nfcItemId = id;
   const item = items.find(i => i.id==id);
   document.getElementById('nfcItemName').textContent = item.name;
-  const url = `${SCRIPT_URL}?action=techView&id=${item.id}`;
+  const url = 'https://yossivogel2.github.io/workshop-inventory/t.html?id=' + item.id;
   document.getElementById('nfcUrl').textContent = url;
   document.getElementById('nfcModal').classList.add('show');
 }
