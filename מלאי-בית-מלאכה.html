@@ -232,16 +232,30 @@
   </div>
 </div>
 
-<!-- RESTOCK MODAL -->
+<!-- EDIT MODAL -->
 <div class="modal-overlay" id="restockModal">
   <div class="modal">
-    <div class="modal-title">עדכון פריט – <span id="restockItemName"></span></div>
-    <div class="form-group"><label>כמות חדשה</label><input type="number" id="restockQty" min="0" /></div>
-    <div class="form-group"><label>מק"ט</label><input type="text" id="restockSku" placeholder="מספר קטלוגי..." /></div>
+    <div class="modal-title">עריכת פריט – <span id="restockItemName"></span></div>
+    <div class="form-row">
+      <div class="form-group"><label>שם</label><input type="text" id="editName" /></div>
+      <div class="form-group"><label>סוג</label>
+        <select id="editType"><option value="free">חופשי</option><option value="managed">מנוהל</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>תיאור</label><input type="text" id="editDesc" /></div>
+    <div class="form-group"><label>קטגוריה</label><input type="text" id="editCategory" /></div>
+    <div class="form-row">
+      <div class="form-group"><label>כמות</label><input type="number" id="restockQty" min="0" /></div>
+      <div class="form-group"><label>מינימום</label><input type="number" id="editMin" min="1" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>אמוג'י</label><input type="text" id="editEmoji" maxlength="2" /></div>
+      <div class="form-group"><label>מק"ט</label><input type="text" id="restockSku" /></div>
+    </div>
     <div class="form-group"><label>קישור תמונה</label><input type="text" id="restockImage" placeholder="https://i.ibb.co/..." /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeRestockModal()">ביטול</button>
-      <button class="btn btn-success" onclick="confirmRestock()">עדכן</button>
+      <button class="btn btn-success" onclick="confirmRestock()">שמור</button>
     </div>
   </div>
 </div>
@@ -268,7 +282,7 @@
 <div class="toast" id="toast">✓ <span id="toastMsg"></span></div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIjZftSfeeJywHo8MvtLewrOo48i52fffRm3-bsq3Eb9-Njr4-ueIpdnqbEfQx_EI_XQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuumGm30tf-fdpX2Mw2eLFWoX1LiDk5dpN4Qi-sxBODWEFW76WHQUV6z5L01yFXKKZGg/exec';
 // דף טכנאי
 const TECH_BASE = 'https://yossivogel2.github.io/workshop-inventory/טכנאי.html';
 
@@ -280,6 +294,7 @@ let nfcItemId = null;
 
 // ---- INIT ----
 // loadItems called after login
+setInterval(() => { if(document.getElementById("mainApp").style.display !== "none") loadItems(); }, 300000);
 
 async function loadItems() {
   const btn = document.getElementById('syncBtn');
@@ -505,7 +520,13 @@ function openRestock(id) {
   restockItemId = id;
   const item = items.find(i => i.id==id);
   document.getElementById('restockItemName').textContent = item.name;
+  document.getElementById('editName').value = item.name || '';
+  document.getElementById('editType').value = item.type || 'free';
+  document.getElementById('editDesc').value = item.desc || '';
+  document.getElementById('editCategory').value = item.category || '';
   document.getElementById('restockQty').value = item.qty;
+  document.getElementById('editMin').value = item.min || 3;
+  document.getElementById('editEmoji').value = item.emoji || '';
   document.getElementById('restockSku').value = item.sku || '';
   document.getElementById('restockImage').value = item.image || '';
   document.getElementById('restockModal').classList.add('show');
@@ -514,17 +535,23 @@ function closeRestockModal() { document.getElementById('restockModal').classList
 async function confirmRestock() {
   const item = items.find(i => i.id==restockItemId);
   const qty = parseInt(document.getElementById('restockQty').value)||0;
+  const name = document.getElementById('editName').value.trim();
+  const type = document.getElementById('editType').value;
+  const desc = document.getElementById('editDesc').value.trim();
+  const category = document.getElementById('editCategory').value.trim();
+  const min = parseInt(document.getElementById('editMin').value)||3;
+  const emoji = document.getElementById('editEmoji').value.trim();
   const sku = document.getElementById('restockSku').value.trim();
   const image = document.getElementById('restockImage').value.trim();
   showLoading(true);
   try {
-    await fetch(`${SCRIPT_URL}?action=updateItem&id=${item.id}&qty=${qty}&sku=${encodeURIComponent(sku)}&image=${encodeURIComponent(image)}`);
-    item.qty = qty;
-    item.sku = sku;
-    item.image = image;
+    await fetch(`${SCRIPT_URL}?action=updateItem&id=${item.id}&qty=${qty}&name=${encodeURIComponent(name)}&type=${type}&desc=${encodeURIComponent(desc)}&category=${encodeURIComponent(category)}&min=${min}&emoji=${encodeURIComponent(emoji)}&sku=${encodeURIComponent(sku)}&image=${encodeURIComponent(image)}`);
+    item.qty = qty; item.name = name; item.type = type; item.desc = desc;
+    item.category = category; item.min = min; item.emoji = emoji;
+    item.sku = sku; item.image = image;
     closeRestockModal();
     renderAll();
-    showToast(`פריט עודכן: ${item.name}`);
+    showToast('פריט עודכן: ' + name);
   } catch(e) { showToast('שגיאה בעדכון', true); }
   showLoading(false);
 }

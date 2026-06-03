@@ -53,6 +53,7 @@
   <div id="itemImageWrap"></div>
   <div class="item-name" id="itemName"></div>
   <div class="item-desc" id="itemDesc"></div>
+  <div id="itemSku" style="display:none;font-size:12px;color:var(--text2);margin-bottom:6px"></div>
   <div class="item-cat" id="itemCat"></div>
   <div class="stock-info">
     <div>
@@ -91,7 +92,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIjZftSfeeJywHo8MvtLewrOo48i52fffRm3-bsq3Eb9-Njr4-ueIpdnqbEfQx_EI_XQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuumGm30tf-fdpX2Mw2eLFWoX1LiDk5dpN4Qi-sxBODWEFW76WHQUV6z5L01yFXKKZGg/exec';
 const params = new URLSearchParams(window.location.search);
 const itemId = params.get('id');
 let currentItem = null;
@@ -119,6 +120,8 @@ function renderItem(item) {
   document.getElementById('itemName').textContent = item.name;
   document.getElementById('itemDesc').textContent = item.desc;
   document.getElementById('itemCat').textContent = item.category;
+  const skuEl = document.getElementById('itemSku');
+  if (item.sku) { skuEl.textContent = 'מק"ט: ' + item.sku; skuEl.style.display='block'; } else { skuEl.style.display='none'; }
   const qty = item.qty;
   const numEl = document.getElementById('stockNum');
   numEl.textContent = qty;
