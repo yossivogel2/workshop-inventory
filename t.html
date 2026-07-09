@@ -74,6 +74,10 @@
       <label>שם לקוח</label>
       <input type="text" id="customerName" placeholder="הקלד שם לקוח..." />
     </div>
+    <div class="form-group">
+      <label>כמות</label>
+      <input type="number" id="takeQty" placeholder="כמות יחידות..." min="1" value="1" />
+    </div>
   </div>
   <button class="btn-take go" id="btnTake" onclick="takePart()">✓ לקחתי</button>
 </div>
@@ -134,18 +138,22 @@ function renderItem(item) {
     btn.onclick = null;
   } else if (item.type === 'managed') {
     document.getElementById('managedFields').classList.remove('hidden');
+    document.getElementById('takeQty').max = qty;
   }
   show('screenItem');
 }
 
 async function takePart() {
   if (!currentItem) return;
-  let manager = '', customer = '';
+  let manager = '', customer = '', qty = 1;
   if (currentItem.type === 'managed') {
     manager = document.getElementById('managerName').value.trim();
     customer = document.getElementById('customerName').value.trim();
+    const qtyInput = document.getElementById('takeQty');
+    qty = parseInt(qtyInput.value) || 0;
     if (!manager) { document.getElementById('managerName').style.borderColor = 'var(--danger)'; document.getElementById('managerName').focus(); return; }
     if (!customer) { document.getElementById('customerName').style.borderColor = 'var(--danger)'; document.getElementById('customerName').focus(); return; }
+    if (qty < 1 || qty > currentItem.qty) { qtyInput.style.borderColor = 'var(--danger)'; qtyInput.focus(); return; }
   }
   const btn = document.getElementById('btnTake');
   btn.textContent = '...שומר';
@@ -153,12 +161,12 @@ async function takePart() {
   btn.onclick = null;
   try {
     const role = manager || 'טכנאי';
-    const url = SCRIPT_URL + '?action=take&id=' + currentItem.id + '&role=' + encodeURIComponent(role) + '&customer=' + encodeURIComponent(customer);
+    const url = SCRIPT_URL + '?action=take&id=' + currentItem.id + '&role=' + encodeURIComponent(role) + '&customer=' + encodeURIComponent(customer) + '&qty=' + qty;
     const res = await fetch(url);
     const data = await res.json();
     if (data.success) {
       beep();
-      let msg = currentItem.name + ' נלקח';
+      let msg = currentItem.name + (qty > 1 ? ' (' + qty + ' יחידות)' : '') + ' נלקח';
       if (manager) msg += ' על ידי ' + manager;
       if (customer) msg += ' עבור ' + customer;
       msg += '. נותרו ' + data.qty + ' יחידות.';

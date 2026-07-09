@@ -173,9 +173,16 @@
     <!-- LOG -->
     <div class="tab-content" id="tab-log">
       <div class="card">
-        <div style="display:flex;gap:8px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
           <button class="log-filter-btn active" id="filterFree" onclick="setLogFilter('free',this)">חופשי</button>
           <button class="log-filter-btn" id="filterManaged" onclick="setLogFilter('managed',this)">מנוהל</button>
+          <div style="flex:1"></div>
+          <select id="printFilter" style="width:auto;padding:6px 10px;font-size:13px">
+            <option value="all">הכל</option>
+            <option value="free">חופשי</option>
+            <option value="managed">מנוהל</option>
+          </select>
+          <button class="btn btn-ghost" onclick="printLog()">🖨️ הדפס דוח</button>
         </div>
         <div id="logList"><div class="empty"><div class="empty-icon">📋</div>טוען...</div></div>
       </div>
@@ -450,6 +457,49 @@ function setLogFilter(type, btn) {
   document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderLog();
+}
+
+// ---- PRINT REPORT ----
+function printLog() {
+  const filterVal = document.getElementById('printFilter').value;
+  const rows = filterVal === 'all' ? logData : logData.filter(l => (l[3] || 'free') === filterVal);
+  const filterLabel = filterVal === 'all' ? 'הכל' : (filterVal === 'free' ? 'חופשי' : 'מנוהל');
+  const tableRows = rows.map(l => {
+    const date = formatDate(l[0]);
+    const time = formatTime(l[1]);
+    const itemName = l[2] || '';
+    const type = (l[3] || 'free') === 'managed' ? 'מנוהל' : 'חופשי';
+    const customer = l[4] || '';
+    const who = l[5] || '';
+    return `<tr><td>${date}</td><td>${time}</td><td>${itemName}</td><td>${type}</td><td>${who}</td><td>${customer}</td></tr>`;
+  }).join('');
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>דוח יומן – ${filterLabel}</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 24px; direction: rtl; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #555; font-size: 13px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: right; }
+  th { background: #f0f0f0; }
+</style>
+</head>
+<body>
+  <h1>דוח יומן פעילות – ${filterLabel}</h1>
+  <div class="sub">הופק בתאריך ${new Date().toLocaleDateString('he-IL')} · ${rows.length} רשומות</div>
+  <table>
+    <thead><tr><th>תאריך</th><th>שעה</th><th>פריט</th><th>סוג</th><th>מבצע</th><th>לקוח</th></tr></thead>
+    <tbody>${tableRows || '<tr><td colspan="6" style="text-align:center">אין נתונים</td></tr>'}</tbody>
+  </table>
+</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 // ---- ALERTS ----
