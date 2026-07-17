@@ -219,6 +219,9 @@
 
     <!-- ADMIN -->
     <div class="tab-content" id="tab-admin">
+      <div class="card" style="margin-bottom:16px">
+        <input type="text" id="adminSearchInput" placeholder="🔍 חיפוש לפי שם או מק&quot;ט..." oninput="renderAdmin()" />
+      </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <div class="card-title" style="margin-bottom:0">ניהול פריטים</div>
@@ -599,7 +602,11 @@ function renderAlerts() {
 // ---- ADMIN ----
 function renderAdmin() {
   const body = document.getElementById('adminBody');
-  body.innerHTML = items.map(item => `
+  const search = (document.getElementById('adminSearchInput')?.value || '').trim().toLowerCase();
+  const filtered = search
+    ? items.filter(i => (i.name || '').toLowerCase().includes(search) || (i.sku || '').toLowerCase().includes(search))
+    : items;
+  body.innerHTML = filtered.map(item => `
     <tr>
       <td><span style="margin-left:6px">${item.emoji}</span>${item.name}<br><span style="color:var(--text3);font-size:12px">${item.category}</span></td>
       <td><span class="type-badge ${item.type}">${item.type==='free'?'חופשי':'מנוהל'}</span></td>
