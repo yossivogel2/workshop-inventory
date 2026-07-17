@@ -182,6 +182,24 @@
             <option value="free">חופשי</option>
             <option value="managed">מנוהל</option>
           </select>
+          <select id="printMonth" style="width:auto;padding:6px 10px;font-size:13px">
+            <option value="all">כל החודשים</option>
+            <option value="0">ינואר</option>
+            <option value="1">פברואר</option>
+            <option value="2">מרץ</option>
+            <option value="3">אפריל</option>
+            <option value="4">מאי</option>
+            <option value="5">יוני</option>
+            <option value="6">יולי</option>
+            <option value="7">אוגוסט</option>
+            <option value="8">ספטמבר</option>
+            <option value="9">אוקטובר</option>
+            <option value="10">נובמבר</option>
+            <option value="11">דצמבר</option>
+          </select>
+          <select id="printYear" style="width:auto;padding:6px 10px;font-size:13px">
+            <option value="all">כל השנים</option>
+          </select>
           <button class="btn btn-ghost" onclick="printLog()">🖨️ הדפס דוח</button>
         </div>
         <div id="logList"><div class="empty"><div class="empty-icon">📋</div>טוען...</div></div>
@@ -299,6 +317,8 @@ let logFilter = 'free';
 let restockItemId = null;
 let nfcItemId = null;
 
+const HEBREW_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
 // ---- INIT ----
 // loadItems called after login
 setInterval(() => { if(document.getElementById("mainApp").style.display !== "none") loadItems(); }, 300000);
@@ -390,6 +410,7 @@ async function loadLog() {
     const res = await fetch(SCRIPT_URL + '?action=getLog');
     const raw = await res.json();
     logData = raw.slice(1).reverse();
+    populateYearFilter();
     renderLog();
   } catch(e) {
     document.getElementById('logList').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>אין נתונים</div>';
@@ -421,6 +442,35 @@ function formatTime(raw) {
     return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
   }
   return raw;
+}
+function parseLogDate(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'number') {
+    return new Date(Math.round((raw - 25569) * 86400 * 1000));
+  }
+  if (String(raw).includes('T')) {
+    return new Date(raw);
+  }
+  const parts = String(raw).split('/');
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  }
+  return null;
+}
+function populateYearFilter() {
+  const yearSelect = document.getElementById('printYear');
+  const prevVal = yearSelect.value;
+  const years = new Set();
+  logData.forEach(l => {
+    const d = parseLogDate(l[0]);
+    if (d) years.add(d.getFullYear());
+  });
+  const sorted = Array.from(years).sort((a,b) => b - a);
+  yearSelect.innerHTML = '<option value="all">כל השנים</option>' +
+    sorted.map(y => `<option value="${y}">${y}</option>`).join('');
+  if (prevVal === 'all' || sorted.includes(parseInt(prevVal))) {
+    yearSelect.value = prevVal;
+  }
 }
 function renderLog() {
   const el = document.getElementById('logList');
@@ -462,8 +512,26 @@ function setLogFilter(type, btn) {
 // ---- PRINT REPORT ----
 function printLog() {
   const filterVal = document.getElementById('printFilter').value;
-  const rows = filterVal === 'all' ? logData : logData.filter(l => (l[3] || 'free') === filterVal);
+  const monthVal = document.getElementById('printMonth').value;
+  const yearVal = document.getElementById('printYear').value;
+
+  let rows = filterVal === 'all' ? logData : logData.filter(l => (l[3] || 'free') === filterVal);
+  if (monthVal !== 'all' || yearVal !== 'all') {
+    rows = rows.filter(l => {
+      const d = parseLogDate(l[0]);
+      if (!d) return false;
+      if (monthVal !== 'all' && d.getMonth() !== parseInt(monthVal)) return false;
+      if (yearVal !== 'all' && d.getFullYear() !== parseInt(yearVal)) return false;
+      return true;
+    });
+  }
+
   const filterLabel = filterVal === 'all' ? 'הכל' : (filterVal === 'free' ? 'חופשי' : 'מנוהל');
+  const periodLabel = monthVal === 'all' && yearVal === 'all' ? 'כל התקופות'
+    : monthVal !== 'all' && yearVal !== 'all' ? HEBREW_MONTHS[parseInt(monthVal)] + ' ' + yearVal
+    : monthVal !== 'all' ? HEBREW_MONTHS[parseInt(monthVal)]
+    : yearVal;
+
   const tableRows = rows.map(l => {
     const date = formatDate(l[0]);
     const time = formatTime(l[1]);
@@ -478,7 +546,7 @@ function printLog() {
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>דוח יומן – ${filterLabel}</title>
+<title>דוח יומן – ${filterLabel} – ${periodLabel}</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 24px; direction: rtl; }
   h1 { font-size: 20px; margin-bottom: 4px; }
@@ -490,7 +558,7 @@ function printLog() {
 </head>
 <body>
   <h1>דוח יומן פעילות – ${filterLabel}</h1>
-  <div class="sub">הופק בתאריך ${new Date().toLocaleDateString('he-IL')} · ${rows.length} רשומות</div>
+  <div class="sub">תקופה: ${periodLabel} · הופק בתאריך ${new Date().toLocaleDateString('he-IL')} · ${rows.length} רשומות</div>
   <table>
     <thead><tr><th>תאריך</th><th>שעה</th><th>פריט</th><th>סוג</th><th>מבצע</th><th>לקוח</th></tr></thead>
     <tbody>${tableRows || '<tr><td colspan="6" style="text-align:center">אין נתונים</td></tr>'}</tbody>
