@@ -148,6 +148,9 @@
 
     <!-- INVENTORY -->
     <div class="tab-content active" id="tab-inventory">
+      <div class="card" style="margin-bottom:16px">
+        <input type="text" id="searchInput" placeholder="🔍 חיפוש לפי שם או מק&quot;ט..." oninput="renderInventory()" />
+      </div>
       <div class="stats">
         <div class="stat info"><div class="stat-num" id="totalItems">—</div><div class="stat-label">פריטים</div></div>
         <div class="stat ok"><div class="stat-num" id="okItems">—</div><div class="stat-label">תקין</div></div>
@@ -375,7 +378,14 @@ function showTab(name, btn) {
 // ---- INVENTORY ----
 function renderInventory() {
   const filter = document.getElementById('filterType')?.value || '';
-  const filtered = filter ? items.filter(i => i.type === filter) : items;
+  const search = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+  let filtered = filter ? items.filter(i => i.type === filter) : items;
+  if (search) {
+    filtered = filtered.filter(i =>
+      (i.name || '').toLowerCase().includes(search) ||
+      (i.sku || '').toLowerCase().includes(search)
+    );
+  }
   document.getElementById('inventoryBody').innerHTML = filtered.length === 0
     ? '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:32px">אין פריטים</td></tr>'
     : filtered.map(item => `
