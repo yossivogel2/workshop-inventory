@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מכונת קרח</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap');
+  :root { --bg:#0f1117; --surface:#181c27; --surface2:#1e2333; --border:#2a3045; --accent:#4f8ef7; --accent2:#2dd4bf; --success:#22c55e; --danger:#ef4444; --warn:#f59e0b; --purple:#a78bfa; --text:#e8eaf0; --text2:#8b92a8; --text3:#555e78; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Heebo',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:20px 16px 40px; }
+  .wrap { width:100%; max-width:420px; margin:0 auto; }
+  .center { text-align:center; padding-top:18vh; }
+  .spinner { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 14px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  @keyframes popIn { from{transform:scale(0.6);opacity:0} to{transform:scale(1);opacity:1} }
+  .whoami { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text2); margin-bottom:16px; }
+  .whoami button { background:none; border:none; color:var(--accent); font-family:inherit; font-size:13px; cursor:pointer; }
+  .mnum { font-size:28px; font-weight:800; text-align:center; direction:ltr; letter-spacing:0.5px; }
+  .mmodel { text-align:center; color:var(--text2); font-size:14px; margin:2px 0 12px; }
+  .pill { display:inline-block; padding:5px 14px; border-radius:20px; font-size:14px; font-weight:600; }
+  .pill.w { background:rgba(34,197,94,0.15); color:var(--success); }
+  .pill.r { background:rgba(79,142,247,0.15); color:var(--accent); }
+  .pill.m { background:rgba(245,158,11,0.15); color:var(--warn); }
+  .pill.f { background:rgba(239,68,68,0.15); color:var(--danger); }
+  .pill.monthly { background:rgba(167,139,250,0.15); color:var(--purple); margin-right:6px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin:16px 0; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid rgba(42,48,69,0.6); font-size:15px; }
+  .row:last-child { border-bottom:none; }
+  .row .k { color:var(--text2); white-space:nowrap; }
+  .row .v { font-weight:600; text-align:left; }
+  .days { text-align:center; font-size:15px; color:var(--text2); margin-bottom:10px; }
+  .days b { font-size:34px; color:var(--text); display:block; line-height:1.1; }
+  .photo { width:100%; border-radius:10px; margin-top:10px; display:block; }
+  .btn { width:100%; padding:16px; border-radius:14px; border:none; font-family:inherit; font-size:17px; font-weight:700; cursor:pointer; margin-top:10px; display:block; }
+  .btn:active { transform:scale(0.98); }
+  .btn.go { background:var(--success); color:#fff; }
+  .btn.blue { background:var(--accent); color:#fff; }
+  .btn.warn { background:rgba(245,158,11,0.15); color:var(--warn); border:1px solid rgba(245,158,11,0.35); }
+  .btn.ghost { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn.red { background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.35); }
+  .btn:disabled { opacity:0.6; }
+  .section-title { font-size:13px; color:var(--text3); margin:22px 0 4px; font-weight:600; }
+  .form-group { margin-bottom:12px; }
+  label { display:block; font-size:13px; color:var(--text2); margin-bottom:6px; font-weight:500; }
+  input[type=text], input[type=tel], input[type=date], input[type=password], select, textarea { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; color:var(--text); font-family:inherit; font-size:16px; outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+  input.bad { border-color:var(--danger); }
+  .code-input { text-align:center; font-size:28px !important; letter-spacing:10px; }
+  .checks label { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; font-size:15px; color:var(--text); cursor:pointer; }
+  .checks input { width:20px; height:20px; accent-color:var(--accent); }
+  .warnbox { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.35); color:#fcd34d; border-radius:12px; padding:14px; font-size:15px; line-height:1.5; margin-bottom:16px; }
+  .infobox { background:rgba(79,142,247,0.08); border:1px solid rgba(79,142,247,0.3); color:var(--text); border-radius:12px; padding:14px; font-size:15px; line-height:1.5; margin-bottom:16px; }
+  .mgr { font-size:12px; color:var(--purple); margin-top:4px; }
+  .photo-btn { display:flex; align-items:center; justify-content:center; gap:8px; background:var(--surface); border:1px dashed var(--border); border-radius:10px; padding:14px; color:var(--text2); font-size:15px; cursor:pointer; }
+  .preview { width:100%; border-radius:10px; margin-top:8px; }
+  .big { font-size:72px; text-align:center; animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); margin-bottom:10px; }
+  h2 { font-size:22px; font-weight:800; text-align:center; margin-bottom:8px; }
+  .msg { color:var(--text2); font-size:15px; text-align:center; line-height:1.6; margin-bottom:20px; }
+  .back { background:none; border:none; color:var(--text2); font-family:inherit; font-size:14px; cursor:pointer; margin-bottom:10px; }
+  .ltr { direction:ltr; unicode-bidi:isolate; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="center"><div class="spinner"></div><div style="color:var(--text2)">טוען...</div></div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygaRdZdOdVVjiGIAF90zYFl2x6kruyRIJqPzrYIs0TF-pMtRmXYdbJd1AUxdVozGXB7g/exec';
+const ST_W = 'בבית המלאכה', ST_R = 'בשכירות', ST_M = 'בתחזוקה', ST_F = 'תקולה בבדיקה';
+
+let machineId = new URLSearchParams(location.search).get('id');
+let me = null;       // {name, role, code}
+let data = null;     // תשובת השרת על המכונה
+let photoData = '';  // תמונה מוקטנת
+
+const app = document.getElementById('app');
+
+// ---------- עזרים ----------
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showDate(s) { const a = String(s || '').split('-'); return a.length === 3 ? a[2] + '/' + a[1] + '/' + a[0] : (s || ''); }
+function todayIso() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function daysText(n) { n = +n; return n === 1 ? 'יום אחד' : n + ' ימים'; }
+function isMgr() { return me && me.role === 'manager'; }
+function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function pillClass(st) { return st === ST_R ? 'r' : st === ST_M ? 'm' : st === ST_F ? 'f' : 'w'; }
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+async function apiGet(params) {
+  const res = await fetch(SCRIPT_URL + '?' + new URLSearchParams(params).toString());
+  return res.json();
+}
+async function apiPost(params) {
+  const res = await fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(params) });
+  return res.json();
+}
+
+function loading(text) {
+  app.innerHTML = '<div class="center"><div class="spinner"></div><div style="color:var(--text2)">' + esc(text || 'טוען...') + '</div></div>';
+}
+function showError(title, msg, retry) {
+  app.innerHTML = '<div class="center"><div class="big">⚠️</div><h2 style="color:var(--danger)">' + esc(title) + '</h2><div class="msg">' + esc(msg) + '</div>' +
+    (retry ? '<button class="btn ghost" onclick="location.reload()">נסה שוב</button>' : '') + '</div>';
+}
+function showSuccess(title, msg) {
+  beep();
+  app.innerHTML = '<div class="center" style="padding-top:12vh"><div class="big">✅</div><h2>' + esc(title) + '</h2><div class="msg">' + msg + '</div>' +
+    '<button class="btn ghost" onclick="openMachine()">חזרה למכונה</button></div>';
+}
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); o.frequency.value = 880;
+    g.gain.setValueAtTime(0.3, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    o.start(); o.stop(ctx.currentTime + 0.3);
+  } catch (e) {}
+}
+function whoBar() {
+  return '<div class="whoami"><span>שלום ' + esc(me.name) + (isMgr() ? ' (מנהל)' : '') + '</span><button onclick="logout()">לא אתה? החלף</button></div>';
+}
+
+// ---------- כניסה עם קוד ----------
+async function start() {
+  const code = load('mCode');
+  if (!code) { askCode(); return; }
+  try {
+    const r = await apiGet({ action:'mCheckCode', code:code });
+    if (!r.success) { store('mCode', null); askCode('הקוד כבר לא בתוקף. יש להזין קוד חדש'); return; }
+    me = { name:r.name, role:r.role, code:code };
+    afterLogin();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט', true); }
+}
+
+function askCode(note) {
+  app.innerHTML = '<div class="center" style="padding-top:10vh"><div class="big">🔑</div><h2>קוד אישי</h2>' +
+    '<div class="msg">' + esc(note || 'בפעם הראשונה בטלפון הזה יש להזין את הקוד האישי שלך') + '</div>' +
+    '<input type="password" inputmode="numeric" maxlength="6" class="code-input" id="codeIn" autocomplete="off" onkeydown="if(event.key===\'Enter\')submitCode()">' +
+    '<button class="btn blue" id="codeBtn" onclick="submitCode()">כניסה</button>' +
+    '<div id="codeErr" style="color:var(--danger);margin-top:10px;min-height:20px"></div></div>';
+  setTimeout(() => { const el = document.getElementById('codeIn'); if (el) el.focus(); }, 100);
+}
+
+async function submitCode() {
+  const code = val('codeIn');
+  if (!code) return;
+  const btn = document.getElementById('codeBtn');
+  btn.disabled = true; btn.textContent = 'בודק...';
+  try {
+    const r = await apiGet({ action:'mCheckCode', code:code });
+    if (!r.success) {
+      document.getElementById('codeErr').textContent = 'קוד שגוי';
+      btn.disabled = false; btn.textContent = 'כניסה';
+      return;
+    }
+    store('mCode', code);
+    me = { name:r.name, role:r.role, code:code };
+    afterLogin();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט', true); }
+}
+
+function logout() { store('mCode', null); me = null; askCode(); }
+
+function afterLogin() {
+  if (machineId) openMachine();
+  else askNumber();
+}
+
+// ---------- הקלדת מספר מכונה ידנית ----------
+function askNumber(note) {
+  app.innerHTML = whoBar() + '<div class="center" style="padding-top:6vh"><div class="big">🧊</div><h2>מספר מכונה</h2>' +
+    '<div class="msg">' + esc(note || 'הקלד את מספר המכונה, או רק את הספרות האמצעיות') + '</div>' +
+    '<input type="text" id="numIn" class="ltr" style="text-align:center;font-size:20px" placeholder="IOM-O-2357/25" onkeydown="if(event.key===\'Enter\')findNumber()">' +
+    '<button class="btn blue" id="numBtn" onclick="findNumber()">חפש</button></div>';
+  setTimeout(() => { const el = document.getElementById('numIn'); if (el) el.focus(); }, 100);
+}
+
+async function findNumber() {
+  const n = val('numIn');
+  if (!n) return;
+  const btn = document.getElementById('numBtn');
+  btn.disabled = true; btn.textContent = 'מחפש...';
+  try {
+    const r = await apiGet({ action:'mFind', number:n });
+    if (r.success) { machineId = r.id; openMachine(); return; }
+    askNumber(r.msg + (r.options ? ': ' + r.options.join(' , ') : ''));
+    document.getElementById('numIn').value = n;
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט', true); }
+}
+
+// ---------- מסך המכונה ----------
+async function openMachine() {
+  loading('טוען מכונה...');
+  photoData = '';
+  try {
+    data = await apiGet({ action:'mView', id:machineId });
+    if (!data.success) { showError('מכונה לא נמצאה', 'המכונה לא קיימת במערכת. אולי נמחקה מהצי.'); return; }
+    renderMachine();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט', true); }
+}
+
+function renderMachine() {
+  const m = data.machine, r = data.rental;
+  let h = whoBar();
+  h += '<div class="mnum">' + esc(m.number) + '</div>';
+  h += '<div class="mmodel">' + esc(m.model || '') + '</div>';
+  h += '<div style="text-align:center"><span class="pill ' + pillClass(m.status) + '">' + esc(m.status) + '</span>' +
+       (r && r.monthly ? '<span class="pill monthly">שכירות חודשית</span>' : '') + '</div>';
+
+  if (r) {
+    h += '<div class="card">';
+    h += '<div class="days"><b>' + esc(r.daysSoFar) + '</b>' + (+r.daysSoFar === 1 ? 'יום' : 'ימים') + ' אצל הלקוח</div>';
+    h += '<div class="row"><span class="k">לקוח</span><span class="v">' + esc(r.customer) + '</span></div>';
+    h += '<div class="row"><span class="k">כתובת</span><span class="v">' + esc(r.address) + '</span></div>';
+    if (r.contact) h += '<div class="row"><span class="k">איש קשר</span><span class="v">' + esc(r.contact) + '</span></div>';
+    h += '<div class="row"><span class="k">מתאריך</span><span class="v">' + showDate(r.start) + '</span></div>';
+    if (r.equipment) h += '<div class="row"><span class="k">ציוד נלווה</span><span class="v">' + esc(r.equipment) + '</span></div>';
+    if (r.photo) h += '<img class="photo" src="' + esc(r.photo) + '" onerror="this.style.display=\'none\'">';
+    h += '</div>';
+    h += '<button class="btn go" onclick="showEnd()">✓ סיום שכירות</button>';
+    h += '<button class="btn blue" onclick="showForm(\'transfer\')">➜ העברה ללקוח אחר</button>';
+    h += '<button class="btn warn" onclick="showSwap()">⇄ החלפת מכונה תקולה</button>';
+    if (isMgr()) h += '<button class="btn ghost" onclick="showEdit()">✎ תיקון פרטי השכירות</button>';
+  } else if (m.status === ST_W) {
+    h += '<div class="card" style="text-align:center;color:var(--text2)">המכונה פנויה בבית המלאכה</div>';
+    h += '<button class="btn go" onclick="showForm(\'install\')">+ התקנה אצל לקוח</button>';
+    if (isMgr()) {
+      h += '<button class="btn ghost" onclick="setStatus(\'' + ST_M + '\')">🔧 העבר לתחזוקה</button>';
+      h += '<button class="btn red" onclick="setStatus(\'' + ST_F + '\')">⚠ סמן כתקולה</button>';
+    }
+  } else {
+    h += '<div class="card" style="text-align:center;color:var(--text2)">המכונה ' + esc(m.status) + '.<br>' +
+         (isMgr() ? 'כשהיא מוכנה, להחזיר אותה לזמינות.' : 'רק מנהל יכול להחזיר אותה לזמינות.') + '</div>';
+    if (isMgr()) {
+      h += '<button class="btn go" onclick="setStatus(\'' + ST_W + '\')">✓ תקינה, החזר לבית המלאכה</button>';
+      if (m.status !== ST_M) h += '<button class="btn ghost" onclick="setStatus(\'' + ST_M + '\')">🔧 העבר לתחזוקה</button>';
+      if (m.status !== ST_F) h += '<button class="btn red" onclick="setStatus(\'' + ST_F + '\')">⚠ סמן כתקולה</button>';
+    }
+  }
+  h += '<button class="btn ghost" style="margin-top:28px;font-size:14px;padding:12px" onclick="machineId=null;askNumber()">🔍 מכונה אחרת לפי מספר</button>';
+  app.innerHTML = h;
+}
+
+// ---------- טופס התקנה / העברה ----------
+function customerOptions() {
+  return '<datalist id="custList">' + (data.customers || []).map(c => '<option value="' + esc(c.name) + '">').join('') + '</datalist>';
+}
+function equipmentChecks(selected) {
+  const eq = data.equipment || [];
+  if (!eq.length) return '';
+  const sel = String(selected || '').split(',').map(s => s.trim());
+  return '<div class="section-title">ציוד נלווה שיצא עם המכונה</div><div class="checks">' +
+    eq.map(e => '<label><input type="checkbox" class="eqc" value="' + esc(e) + '"' + (sel.indexOf(e) >= 0 ? ' checked' : '') + '>' + esc(e) + '</label>').join('') + '</div>';
+}
+function checkedEquipment() {
+  return Array.from(document.querySelectorAll('.eqc:checked')).map(x => x.value).join(', ');
+}
+function dateField(label) {
+  if (!isMgr()) return '';
+  return '<div class="form-group"><label>' + label + '</label><input type="date" id="fDate" value="' + todayIso() + '"><div class="mgr">מנהל בלבד: אפשר לשנות אם הפעולה נעשתה ביום אחר</div></div>';
+}
+
+function showForm(kind) {
+  const m = data.machine, r = data.rental;
+  photoData = '';
+  let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
+  h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div>';
+  if (kind === 'transfer') {
+    h += '<h2 style="margin-top:10px">העברה ללקוח אחר</h2>';
+    h += '<div class="warnbox">מכונה <span class="ltr">' + esc(m.number) + '</span> בשכירות אצל <b>' + esc(r.customer) + '</b> כבר ' + daysText(r.daysSoFar) + '.<br>השכירות הזאת תיסגר, ותיפתח שכירות חדשה אצל הלקוח החדש.</div>';
+  } else {
+    h += '<h2 style="margin-top:10px">התקנה אצל לקוח</h2>';
+  }
+  h += customerOptions();
+  h += '<div class="form-group"><label>שם לקוח *</label><input type="text" id="fCust" list="custList" autocomplete="off" oninput="fillCustomer()"></div>';
+  h += '<div class="form-group"><label>כתובת *</label><input type="text" id="fAddr"></div>';
+  h += '<div class="form-group"><label>איש קשר באתר</label><input type="text" id="fContact"></div>';
+  h += equipmentChecks(kind === 'transfer' ? r.equipment : '');
+  h += '<div class="section-title">תמונה (רשות)</div>';
+  h += '<label class="photo-btn" for="fPhoto">📷 צלם את המכונה במקום</label><input type="file" id="fPhoto" accept="image/*" capture="environment" style="display:none" onchange="takePhoto(this)"><div id="prev"></div>';
+  h += '<div style="height:10px"></div>' + dateField(kind === 'transfer' ? 'תאריך ההעברה' : 'תאריך ההתקנה');
+  h += '<button class="btn go" id="sendBtn" onclick="submitForm(\'' + kind + '\')">' + (kind === 'transfer' ? 'סגור ופתח שכירות חדשה' : 'שמור התקנה') + '</button>';
+  app.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+function fillCustomer() {
+  const name = val('fCust');
+  const c = (data.customers || []).find(x => x.name === name);
+  if (c) {
+    if (!val('fAddr')) document.getElementById('fAddr').value = c.address || '';
+    if (!val('fContact')) document.getElementById('fContact').value = c.contact || '';
+  }
+}
+
+async function takePhoto(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  document.getElementById('prev').innerHTML = '<div style="color:var(--text2);font-size:13px;margin-top:6px">מכין תמונה...</div>';
+  try {
+    photoData = await shrink(f);
+    document.getElementById('prev').innerHTML = '<img class="preview" src="' + photoData + '">';
+  } catch (e) {
+    photoData = '';
+    document.getElementById('prev').innerHTML = '<div style="color:var(--danger);font-size:13px;margin-top:6px">לא ניתן לקרוא את התמונה</div>';
+  }
+}
+
+// הקטנת תמונה לפני שליחה, כדי שלא תתפוס מקום
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280;
+      let w = img.width, h = img.height;
+      if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+      else if (h > max) { w = Math.round(w * max / h); h = max; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function submitForm(kind) {
+  const cust = val('fCust'), addr = val('fAddr');
+  document.getElementById('fCust').classList.toggle('bad', !cust);
+  document.getElementById('fAddr').classList.toggle('bad', !addr);
+  if (!cust) { document.getElementById('fCust').focus(); return; }
+  if (!addr) { document.getElementById('fAddr').focus(); return; }
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = photoData ? 'שולח עם תמונה...' : 'שומר...';
+  const p = {
+    action: kind === 'transfer' ? 'mTransfer' : 'mInstall',
+    id: machineId, code: me.code,
+    customer: cust, address: addr, contact: val('fContact'),
+    equipment: checkedEquipment(), photo: photoData
+  };
+  if (isMgr()) p.date = val('fDate');
+  try {
+    const r = await apiPost(p);
+    if (r.badCode) { store('mCode', null); askCode(r.msg); return; }
+    if (!r.success) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert(r.msg || 'שגיאה'); return; }
+    if (kind === 'transfer') {
+      showSuccess('ההעברה נרשמה', 'השכירות אצל <b>' + esc(r.from) + '</b> נסגרה אחרי <b>' + daysText(r.days) + '</b>.<br>נפתחה שכירות חדשה אצל <b>' + esc(r.to) + '</b>.');
+    } else {
+      showSuccess('ההתקנה נרשמה', 'המכונה בשכירות אצל <b>' + esc(cust) + '</b> מתאריך ' + showDate(r.start) + '.' + (r.monthly ? '<br>לקוח בשכירות חודשית.' : ''));
+    }
+  } catch (e) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert('שגיאת חיבור. בדוק אינטרנט ונסה שוב'); }
+}
+
+// ---------- סיום שכירות ----------
+function showEnd() {
+  const m = data.machine, r = data.rental;
+  let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
+  h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div><h2 style="margin-top:10px">סיום שכירות</h2>';
+  h += '<div class="infobox">לקוח: <b>' + esc(r.customer) + '</b><br>מתאריך ' + showDate(r.start) + ', כבר ' + daysText(r.daysSoFar) + '.<br>המכונה תחזור למצב "בבית המלאכה".</div>';
+  if (r.equipment) {
+    h += '<div class="section-title">לוודא שחזרו עם המכונה</div><div class="checks">' +
+      r.equipment.split(',').map(s => s.trim()).filter(Boolean).map(e => '<label><input type="checkbox">' + esc(e) + '</label>').join('') + '</div>';
+  }
+  h += '<div style="height:10px"></div>' + dateField('תאריך האיסוף');
+  h += '<button class="btn go" id="sendBtn" onclick="submitEnd()">✓ אישור סיום שכירות</button>';
+  app.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+async function submitEnd() {
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  const p = { action:'mEnd', id:machineId, code:me.code };
+  if (isMgr()) p.date = val('fDate');
+  try {
+    const r = await apiPost(p);
+    if (r.badCode) { store('mCode', null); askCode(r.msg); return; }
+    if (!r.success) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert(r.msg || 'שגיאה'); return; }
+    showSuccess('השכירות הסתיימה', 'אצל <b>' + esc(r.customer) + '</b> מ־' + showDate(r.start) + ' עד ' + showDate(r.end) + '.<br>סה"כ <b>' + daysText(r.days) + '</b>.');
+  } catch (e) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert('שגיאת חיבור. בדוק אינטרנט ונסה שוב'); }
+}
+
+// ---------- החלפת מכונה ----------
+function showSwap() {
+  const m = data.machine, r = data.rental;
+  const av = data.available || [];
+  let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
+  h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div><h2 style="margin-top:10px">החלפת מכונה תקולה</h2>';
+  h += '<div class="warnbox">המכונה הזאת תסומן "תקולה בבדיקה".<br>המכונה החלופית תיכנס אצל <b>' + esc(r.customer) + '</b> עם אותם פרטים' + (r.monthly ? ', כולל שכירות חודשית' : '') + '.</div>';
+  if (!av.length) {
+    h += '<div class="card" style="text-align:center;color:var(--text2)">אין כרגע מכונה פנויה בבית המלאכה</div>';
+  } else {
+    h += '<div class="form-group"><label>המכונה החלופית</label><select id="fNew"><option value="">בחר מכונה...</option>' +
+      av.map(x => '<option value="' + esc(x.id) + '">' + esc(x.number) + (x.model ? ' · ' + esc(x.model) : '') + '</option>').join('') + '</select></div>';
+    h += dateField('תאריך ההחלפה');
+    h += '<button class="btn warn" id="sendBtn" onclick="submitSwap()">⇄ אישור החלפה</button>';
+  }
+  app.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+async function submitSwap() {
+  const newId = val('fNew');
+  if (!newId) { document.getElementById('fNew').classList.add('bad'); return; }
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  const p = { action:'mSwap', id:machineId, newId:newId, code:me.code };
+  if (isMgr()) p.date = val('fDate');
+  try {
+    const r = await apiPost(p);
+    if (r.badCode) { store('mCode', null); askCode(r.msg); return; }
+    if (!r.success) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert(r.msg || 'שגיאה'); return; }
+    showSuccess('ההחלפה נרשמה', 'מכונה <b class="ltr">' + esc(r.newNumber) + '</b> מותקנת עכשיו אצל <b>' + esc(r.customer) + '</b>.<br>המכונה הקודמת סומנה כתקולה (' + daysText(r.days) + ' בשכירות).' +
+      '<br><br>לא לשכוח לסרוק גם את המדבקה של המכונה החדשה כדי לוודא.');
+  } catch (e) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert('שגיאת חיבור. בדוק אינטרנט ונסה שוב'); }
+}
+
+// ---------- מנהל: שינוי מצב ----------
+async function setStatus(status) {
+  if (!confirm('לשנות את מצב המכונה ל"' + status + '"?')) return;
+  loading('שומר...');
+  try {
+    const r = await apiPost({ action:'mSetStatus', id:machineId, status:status, code:me.code });
+    if (!r.success) { alert(r.msg || 'שגיאה'); }
+    openMachine();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט', true); }
+}
+
+// ---------- מנהל: תיקון פרטי שכירות ----------
+function showEdit() {
+  const m = data.machine, r = data.rental;
+  let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
+  h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div><h2 style="margin-top:10px">תיקון פרטי שכירות</h2>';
+  h += customerOptions();
+  h += '<div class="form-group"><label>שם לקוח</label><input type="text" id="fCust" list="custList" value="' + esc(r.customer) + '"></div>';
+  h += '<div class="form-group"><label>כתובת</label><input type="text" id="fAddr" value="' + esc(r.address) + '"></div>';
+  h += '<div class="form-group"><label>איש קשר באתר</label><input type="text" id="fContact" value="' + esc(r.contact) + '"></div>';
+  h += '<div class="form-group"><label>תאריך התחלה</label><input type="date" id="fStart" value="' + esc(r.start) + '"></div>';
+  h += equipmentChecks(r.equipment);
+  h += '<button class="btn blue" id="sendBtn" onclick="submitEdit()">שמור תיקון</button>';
+  app.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+async function submitEdit() {
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  const p = { action:'mEditRental', rentalId:data.rental.id, code:me.code,
+    customer:val('fCust'), address:val('fAddr'), contact:val('fContact'), start:val('fStart') };
+  if ((data.equipment || []).length) p.equipment = checkedEquipment();
+  try {
+    const r = await apiPost(p);
+    if (!r.success) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert(r.msg || 'שגיאה'); return; }
+    showSuccess('התיקון נשמר', 'הפרטים עודכנו ונרשמו ביומן.');
+  } catch (e) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert('שגיאת חיבור. בדוק אינטרנט ונסה שוב'); }
+}
+
+start();
+</script>
+</body>
+</html>

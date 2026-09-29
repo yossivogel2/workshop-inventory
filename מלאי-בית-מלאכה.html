@@ -118,6 +118,16 @@
   .login-box input { margin-bottom:12px; text-align:center; font-size:18px; letter-spacing:4px; }
   .login-box .btn-primary { width:100%; justify-content:center; padding:12px; font-size:16px; }
   .login-error { color:var(--danger); font-size:13px; margin-top:8px; min-height:20px; }
+  .m-row { display:flex; gap:12px; align-items:center; padding:12px 10px; border-bottom:1px solid rgba(42,48,69,0.5); cursor:pointer; border-radius:8px; }
+  .m-row:hover { background:rgba(255,255,255,0.03); }
+  .m-row:last-child { border-bottom:none; }
+  .m-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .m-pill.w { background:rgba(34,197,94,0.15); color:var(--success); }
+  .m-pill.r { background:rgba(79,142,247,0.15); color:var(--accent); }
+  .m-pill.m { background:rgba(245,158,11,0.15); color:var(--warn); }
+  .m-pill.f { background:rgba(239,68,68,0.15); color:var(--danger); }
+  .m-pill.monthly { background:rgba(167,139,250,0.15); color:#a78bfa; }
+  #nfcModal { z-index:250; }
 </style>
 </head>
 <body>
@@ -143,6 +153,7 @@
     <button onclick="showTab('log',this)">יומן</button>
     <button onclick="showTab('alerts',this)" id="alertsTab">התראות</button>
     <button onclick="showTab('admin',this)">ניהול</button>
+    <button onclick="showTab('machines',this);loadMachines()">מכונות</button>
   </nav>
   <main>
 
@@ -234,6 +245,124 @@
       </div>
     </div>
 
+    <!-- MACHINES -->
+    <div class="tab-content" id="tab-machines">
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="log-filter-btn m-sub active" onclick="mSub('status',this)">מצב</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('mlog',this)">יומן</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('report',this)">דוח חודשי</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('fleet',this)">צי</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('people',this)">אנשים</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('customers',this)">לקוחות</button>
+        <button class="log-filter-btn m-sub" onclick="mSub('equip',this)">ציוד</button>
+      </div>
+
+      <!-- מצב -->
+      <div class="m-pane" id="m-status">
+        <div class="stats">
+          <div class="stat info"><div class="stat-num" id="mTotal">—</div><div class="stat-label">מכונות</div></div>
+          <div class="stat"><div class="stat-num" style="color:var(--accent)" id="mRented">—</div><div class="stat-label">בשכירות</div></div>
+          <div class="stat ok"><div class="stat-num" id="mFree">—</div><div class="stat-label">פנויות</div></div>
+          <div class="stat warn"><div class="stat-num" id="mOut">—</div><div class="stat-label">תחזוקה / תקולה</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <input type="text" id="mSearch" placeholder="🔍 חיפוש לפי מספר מכונה, לקוח או דגם..." oninput="renderMStatus()" style="flex:1;min-width:200px" />
+            <select id="mStatusFilter" onchange="renderMStatus()" style="width:auto">
+              <option value="">כל המצבים</option>
+              <option value="בשכירות">בשכירות</option>
+              <option value="בבית המלאכה">בבית המלאכה</option>
+              <option value="בתחזוקה">בתחזוקה</option>
+              <option value="תקולה בבדיקה">תקולה בבדיקה</option>
+            </select>
+          </div>
+          <div id="mStatusList"><div class="empty"><div class="empty-icon">⏳</div>טוען...</div></div>
+        </div>
+      </div>
+
+      <!-- יומן -->
+      <div class="m-pane" id="m-mlog" style="display:none">
+        <div class="card">
+          <input type="text" id="mLogSearch" placeholder="🔍 חיפוש ביומן..." oninput="renderMLog()" style="margin-bottom:12px" />
+          <div id="mLogList"></div>
+        </div>
+      </div>
+
+      <!-- דוח חודשי -->
+      <div class="m-pane" id="m-report" style="display:none">
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+            <select id="mRepMonth" onchange="renderMReport()" style="width:auto"></select>
+            <select id="mRepYear" onchange="renderMReport()" style="width:auto"></select>
+            <select id="mRepCust" onchange="renderMReport()" style="width:auto;min-width:160px"></select>
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost" onclick="printMReport()">🖨️ הדפס דוח</button>
+          </div>
+          <div id="mReport"></div>
+        </div>
+      </div>
+
+      <!-- צי -->
+      <div class="m-pane" id="m-fleet" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+            <div class="card-title" style="margin-bottom:0">צי המכונות</div>
+            <button class="btn btn-primary" onclick="openMachineForm()">+ הוסף מכונה</button>
+          </div>
+          <input type="text" id="mFleetSearch" placeholder="🔍 חיפוש..." oninput="renderMFleet()" style="margin-bottom:12px" />
+          <div class="table-wrap">
+            <table><thead><tr><th>מכונה</th><th>מצב</th><th>NFC</th><th>פעולות</th></tr></thead>
+            <tbody id="mFleetBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- אנשים -->
+      <div class="m-pane" id="m-people" style="display:none">
+        <div class="card">
+          <div class="card-title">הוספת אדם</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="mNewPerson" placeholder="שם" style="flex:1;min-width:140px" />
+            <select id="mNewRole" style="width:auto"><option value="tech">טכנאי</option><option value="manager">מנהל</option></select>
+            <button class="btn btn-primary" onclick="addPerson()">+ הוסף והפק קוד</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">אנשים וקודים</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>שם</th><th>תפקיד</th><th>קוד</th><th>פעולות</th></tr></thead>
+            <tbody id="mPeopleBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- לקוחות -->
+      <div class="m-pane" id="m-customers" style="display:none">
+        <div class="card">
+          <div class="card-title">לקוחות</div>
+          <p style="color:var(--text2);font-size:13px;margin-bottom:12px">לקוחות נוספים לבד בהתקנה הראשונה. כאן מסמנים שכירות חודשית ומתקנים פרטים.</p>
+          <input type="text" id="mCustSearch" placeholder="🔍 חיפוש לקוח..." oninput="renderMCustomers()" style="margin-bottom:12px" />
+          <div class="table-wrap">
+            <table><thead><tr><th>לקוח</th><th>חודשי</th><th>מכונות עכשיו</th><th>פעולות</th></tr></thead>
+            <tbody id="mCustBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ציוד -->
+      <div class="m-pane" id="m-equip" style="display:none">
+        <div class="card">
+          <div class="card-title">ציוד נלווה</div>
+          <p style="color:var(--text2);font-size:13px;margin-bottom:12px">הרשימה שהטכנאי מסמן ממנה בהתקנה, כדי לוודא שהכל חוזר.</p>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <input type="text" id="mNewEquip" placeholder="למשל: מיכל קרח" style="flex:1" />
+            <button class="btn btn-primary" onclick="addEquipment()">+ הוסף</button>
+          </div>
+          <div id="mEquipList"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -300,6 +429,57 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeNfcModal()">סגור</button>
       <button class="btn btn-primary" onclick="copyNfcUrl()">העתק קישור</button>
+    </div>
+  </div>
+</div>
+
+<!-- MACHINE FORM MODAL -->
+<div class="modal-overlay" id="mMachineModal">
+  <div class="modal">
+    <div class="modal-title" id="mMachineTitle">הוספת מכונה</div>
+    <div class="form-group"><label>מספר מכונה</label><input type="text" id="mfNumber" placeholder="IOM-O-2357/25" style="direction:ltr;text-align:right" /></div>
+    <div class="form-group"><label>דגם</label><input type="text" id="mfModel" list="mModelList" placeholder="דגם / סוג" /><datalist id="mModelList"></datalist></div>
+    <div class="form-group"><label>הערות</label><input type="text" id="mfNotes" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeM('mMachineModal')">ביטול</button>
+      <button class="btn btn-primary" onclick="saveMachine()">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- MACHINE DETAIL MODAL -->
+<div class="modal-overlay" id="mDetailModal">
+  <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div id="mDetail"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeM('mDetailModal')">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENTAL MODAL (התקנה / סיום / תיקון מהניהול) -->
+<div class="modal-overlay" id="mRentalModal">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-title" id="mRentalTitle"></div>
+    <div id="mRentalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeM('mRentalModal')">ביטול</button>
+      <button class="btn btn-success" id="mRentalSave">שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER MODAL -->
+<div class="modal-overlay" id="mCustModal">
+  <div class="modal">
+    <div class="modal-title">עריכת לקוח</div>
+    <div class="form-group"><label>שם לקוח</label><input type="text" id="mcName" /></div>
+    <div class="form-group"><label>כתובת</label><input type="text" id="mcAddr" /></div>
+    <div class="form-group"><label>איש קשר</label><input type="text" id="mcContact" /></div>
+    <label style="display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer"><input type="checkbox" id="mcMonthly" style="width:18px;height:18px" /> שכירות חודשית</label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeM('mCustModal')">ביטול</button>
+      <button class="btn btn-success" onclick="saveCustomer()">שמור</button>
     </div>
   </div>
 </div>
@@ -741,6 +921,476 @@ function checkPassword() {
     document.getElementById('loginError').textContent = 'סיסמה שגויה';
     document.getElementById('passwordInput').value = '';
   }
+}
+</script>
+<script>
+// ================================================================
+// לשונית מכונות קרח בהשכרה
+// ================================================================
+const MKEY = 'Vogel';
+const M_BASE = 'https://yossivogel2.github.io/workshop-inventory/m.html?id=';
+const MS_W = 'בבית המלאכה', MS_R = 'בשכירות', MS_M = 'בתחזוקה', MS_F = 'תקולה בבדיקה';
+const LONG_RENTAL_DAYS = 14;
+
+let M = { machines:[], rentals:[], log:[], customers:[], people:[], equipment:[], today:'' };
+let mLoaded = false;
+let mEditMachineId = null;
+let mEditCustName = null;
+
+function mEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mDate(s) { const a = String(s || '').split('-'); return a.length === 3 ? a[2] + '/' + a[1] + '/' + a[0] : (s || ''); }
+function mToday() { if (M.today) return M.today; const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function mDays(a, b) {
+  const pa = String(a).split('-'), pb = String(b).split('-');
+  if (pa.length !== 3 || pb.length !== 3) return 0;
+  return Math.round((Date.UTC(+pb[0], +pb[1] - 1, +pb[2]) - Date.UTC(+pa[0], +pa[1] - 1, +pa[2])) / 86400000) + 1;
+}
+function mPill(st) {
+  const cls = st === MS_R ? 'r' : st === MS_M ? 'm' : st === MS_F ? 'f' : 'w';
+  return '<span class="m-pill ' + cls + '">' + mEsc(st) + '</span>';
+}
+function mOpenRental(machineId) { return M.rentals.filter(r => String(r.machineId) === String(machineId) && !r.end).pop() || null; }
+function mIsMonthly(name) { const c = M.customers.find(x => x.name === name); return !!(c && c.monthly); }
+function mMachine(id) { return M.machines.find(x => String(x.id) === String(id)); }
+function closeM(id) { document.getElementById(id).classList.remove('show'); }
+function openM(id) { document.getElementById(id).classList.add('show'); }
+
+async function mCall(params) {
+  const qs = new URLSearchParams(Object.assign({ key:MKEY }, params)).toString();
+  const res = await fetch(SCRIPT_URL + '?' + qs);
+  return res.json();
+}
+
+async function mDo(params, okMsg) {
+  showLoading(true);
+  try {
+    const r = await mCall(params);
+    if (!r.success) { showToast(r.msg || 'שגיאה', true); showLoading(false); return null; }
+    if (okMsg) showToast(okMsg);
+    await loadMachines(true);
+    showLoading(false);
+    return r;
+  } catch (e) { showToast('שגיאת חיבור', true); showLoading(false); return null; }
+}
+
+async function loadMachines(silent) {
+  if (!silent && !mLoaded) document.getElementById('mStatusList').innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>טוען...</div>';
+  try {
+    const r = await mCall({ action:'mAll' });
+    if (!r.success) { showToast(r.msg || 'שגיאה בטעינת מכונות', true); return; }
+    M = r;
+    mLoaded = true;
+    renderMachinesAll();
+  } catch (e) {
+    if (!silent) document.getElementById('mStatusList').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>שגיאה בטעינה. לבדוק שהסקריפט פורס מחדש.</div>';
+  }
+}
+
+document.getElementById('syncBtn').addEventListener('click', () => { if (mLoaded) loadMachines(true); });
+setInterval(() => { if (mLoaded && document.getElementById('mainApp').style.display !== 'none') loadMachines(true); }, 300000);
+
+function mSub(name, btn) {
+  document.querySelectorAll('.m-pane').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.m-sub').forEach(b => b.classList.remove('active'));
+  document.getElementById('m-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+
+function renderMachinesAll() {
+  renderMStatus(); renderMLog(); fillReportSelects(); renderMReport();
+  renderMFleet(); renderMPeople(); renderMCustomers(); renderMEquip();
+  document.getElementById('mModelList').innerHTML = Array.from(new Set(M.machines.map(m => m.model).filter(Boolean))).map(x => '<option value="' + mEsc(x) + '">').join('');
+  if (document.getElementById('mDetailModal').classList.contains('show') && mDetailId) renderMDetail(mDetailId);
+}
+
+// ---------- מצב ----------
+function renderMStatus() {
+  const q = (document.getElementById('mSearch').value || '').trim().toLowerCase();
+  const f = document.getElementById('mStatusFilter').value;
+  document.getElementById('mTotal').textContent = M.machines.length;
+  document.getElementById('mRented').textContent = M.machines.filter(m => m.status === MS_R).length;
+  document.getElementById('mFree').textContent = M.machines.filter(m => m.status === MS_W).length;
+  document.getElementById('mOut').textContent = M.machines.filter(m => m.status === MS_M || m.status === MS_F).length;
+
+  let list = M.machines.map(m => ({ m:m, r:mOpenRental(m.id) }));
+  if (f) list = list.filter(x => x.m.status === f);
+  if (q) list = list.filter(x => (x.m.number + ' ' + x.m.model + ' ' + (x.r ? x.r.customer + ' ' + x.r.address : '')).toLowerCase().includes(q));
+  const order = { [MS_R]:0, [MS_F]:1, [MS_M]:2, [MS_W]:3 };
+  list.sort((a, b) => (order[a.m.status] - order[b.m.status]) || ((b.r ? b.r.daysSoFar : 0) - (a.r ? a.r.daysSoFar : 0)));
+
+  const el = document.getElementById('mStatusList');
+  if (!M.machines.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🧊</div>אין מכונות עדיין. להוסיף בלשונית "צי".</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div class="empty">לא נמצאו מכונות</div>'; return; }
+  el.innerHTML = list.map(x => {
+    const m = x.m, r = x.r;
+    const monthly = r && mIsMonthly(r.customer);
+    const long = r && !monthly && r.daysSoFar > LONG_RENTAL_DAYS;
+    return '<div class="m-row" onclick="openMachineDetail(\'' + mEsc(m.id) + '\')">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:700;direction:ltr;text-align:right">' + mEsc(m.number) + '</div>' +
+        '<div style="font-size:12px;color:var(--text3)">' + mEsc(m.model) + '</div>' +
+        (r ? '<div style="font-size:13px;color:var(--text2);margin-top:3px">' + mEsc(r.customer) + ' · ' + mEsc(r.address) + '</div>' : '') +
+      '</div>' +
+      '<div style="text-align:left;white-space:nowrap">' + mPill(m.status) +
+        (monthly ? '<div style="margin-top:4px"><span class="m-pill monthly">חודשית</span></div>' : '') +
+        (r ? '<div style="font-size:13px;margin-top:4px;' + (long ? 'color:var(--warn);font-weight:700' : 'color:var(--text2)') + '">' + r.daysSoFar + ' ימים</div>' : '') +
+      '</div></div>';
+  }).join('');
+}
+
+// ---------- יומן ----------
+function renderMLog() {
+  const q = (document.getElementById('mLogSearch').value || '').trim().toLowerCase();
+  let list = M.log.slice().reverse();
+  if (q) list = list.filter(l => (l.number + ' ' + l.action + ' ' + l.customer + ' ' + l.who + ' ' + l.details).toLowerCase().includes(q));
+  const el = document.getElementById('mLogList');
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>אין רשומות</div>'; return; }
+  el.innerHTML = list.slice(0, 500).map(l =>
+    '<div class="log-item"><div class="log-dot managed"></div><div style="flex:1">' +
+      '<div style="font-weight:600;font-size:14px;margin-bottom:3px">' + mEsc(l.action) + ' · <span style="direction:ltr;unicode-bidi:isolate">' + mEsc(l.number) + '</span></div>' +
+      '<div style="font-size:12px;color:var(--text2)">' + mEsc(l.who) + (l.customer ? ' · <span style="color:var(--accent2)">' + mEsc(l.customer) + '</span>' : '') + (l.details ? ' · ' + mEsc(l.details) : '') + '</div>' +
+    '</div><div style="text-align:left;font-size:12px;color:var(--text3);white-space:nowrap"><div>' + mDate(l.date) + '</div><div>' + mEsc(l.time) + '</div></div></div>'
+  ).join('');
+}
+
+// ---------- דוח חודשי ----------
+function fillReportSelects() {
+  const mSel = document.getElementById('mRepMonth'), ySel = document.getElementById('mRepYear'), cSel = document.getElementById('mRepCust');
+  const t = mToday().split('-');
+  if (!mSel.options.length) {
+    mSel.innerHTML = HEBREW_MONTHS.map((n, i) => '<option value="' + (i + 1) + '">' + n + '</option>').join('');
+    mSel.value = String(+t[1]);
+  }
+  const years = new Set([+t[0]]);
+  M.rentals.forEach(r => { if (r.start) years.add(+r.start.slice(0, 4)); if (r.end) years.add(+r.end.slice(0, 4)); });
+  const prevY = ySel.value || t[0];
+  ySel.innerHTML = Array.from(years).sort((a, b) => b - a).map(y => '<option value="' + y + '">' + y + '</option>').join('');
+  ySel.value = prevY;
+  const prevC = cSel.value;
+  const names = Array.from(new Set(M.rentals.map(r => r.customer))).sort((a, b) => a.localeCompare(b, 'he'));
+  cSel.innerHTML = '<option value="">כל הלקוחות</option>' + names.map(n => '<option value="' + mEsc(n) + '">' + mEsc(n) + '</option>').join('');
+  cSel.value = names.indexOf(prevC) >= 0 ? prevC : '';
+}
+
+function reportData() {
+  const mo = +document.getElementById('mRepMonth').value, yr = +document.getElementById('mRepYear').value;
+  const cust = document.getElementById('mRepCust').value;
+  const mStart = yr + '-' + String(mo).padStart(2, '0') + '-01';
+  const last = new Date(yr, mo, 0).getDate();
+  const mEnd = yr + '-' + String(mo).padStart(2, '0') + '-' + String(last).padStart(2, '0');
+  const today = mToday();
+  const rows = M.rentals.filter(r => r.start && (!cust || r.customer === cust)).map(r => {
+    const realEnd = r.end || today;
+    const a = r.start > mStart ? r.start : mStart;
+    const b = realEnd < mEnd ? realEnd : mEnd;
+    if (a > b) return null;
+    return { r:r, from:a, to:b, inMonth:mDays(a, b), total:r.end ? r.days : mDays(r.start, today) };
+  }).filter(Boolean);
+  const groups = {};
+  rows.forEach(x => { (groups[x.r.customer] = groups[x.r.customer] || []).push(x); });
+  const names = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'he'));
+  names.forEach(n => groups[n].sort((a, b) => a.r.start < b.r.start ? -1 : 1));
+  return { mo:mo, yr:yr, cust:cust, groups:groups, names:names };
+}
+
+function reportTable(d, forPrint) {
+  if (!d.names.length) return '<div class="empty"><div class="empty-icon">📄</div>אין שכירויות בחודש הזה</div>';
+  return d.names.map(n => {
+    const rows = d.groups[n];
+    const sum = rows.reduce((s, x) => s + x.inMonth, 0);
+    return '<div style="margin-bottom:22px">' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:8px">' + mEsc(n) + (mIsMonthly(n) ? ' <span class="m-pill monthly">שכירות חודשית</span>' : '') + '</div>' +
+      '<table><thead><tr><th>מכונה</th><th>התחלה</th><th>סיום</th><th>ימים בחודש</th><th>סה"כ ימים</th><th>הערה</th></tr></thead><tbody>' +
+      rows.map(x => '<tr><td style="direction:ltr;text-align:right">' + mEsc(x.r.number) + '</td><td>' + mDate(x.r.start) + '</td><td>' + (x.r.end ? mDate(x.r.end) : 'עדיין בשכירות') + '</td>' +
+        '<td style="font-weight:700">' + x.inMonth + '</td><td>' + x.total + '</td><td>' + mEsc(x.r.closeType && x.r.closeType !== 'סיום' ? x.r.closeType : '') + '</td></tr>').join('') +
+      '<tr><td colspan="3" style="font-weight:700">סה"כ ימים בחודש</td><td style="font-weight:700">' + sum + '</td><td colspan="2"></td></tr>' +
+      '</tbody></table></div>';
+  }).join('');
+}
+
+function renderMReport() {
+  if (!document.getElementById('mRepMonth').options.length) return;
+  document.getElementById('mReport').innerHTML = '<div class="table-wrap">' + reportTable(reportData(), false) + '</div>';
+}
+
+function printMReport() {
+  const d = reportData();
+  const title = 'דוח שכירות מכונות – ' + HEBREW_MONTHS[d.mo - 1] + ' ' + d.yr + (d.cust ? ' – ' + d.cust : '');
+  const win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>' + mEsc(title) + '</title><style>' +
+    'body{font-family:Arial,sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}.sub{color:#555;font-size:13px;margin-bottom:20px}' +
+    'table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}th,td{border:1px solid #ccc;padding:7px 9px;text-align:right}th{background:#f0f0f0}' +
+    '.m-pill{border:1px solid #888;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:normal}</style></head><body>' +
+    '<h1>' + mEsc(title) + '</h1><div class="sub">הופק בתאריך ' + new Date().toLocaleDateString('he-IL') + '</div>' +
+    reportTable(d, true) + '</body></html>');
+  win.document.close(); win.focus(); win.print();
+}
+
+// ---------- צי ----------
+function renderMFleet() {
+  const q = (document.getElementById('mFleetSearch').value || '').trim().toLowerCase();
+  let list = M.machines.slice().sort((a, b) => a.number.localeCompare(b.number));
+  if (q) list = list.filter(m => (m.number + ' ' + m.model + ' ' + m.notes).toLowerCase().includes(q));
+  document.getElementById('mFleetBody').innerHTML = list.length ? list.map(m =>
+    '<tr><td><strong style="direction:ltr;unicode-bidi:isolate">' + mEsc(m.number) + '</strong><br><span style="color:var(--text3);font-size:12px">' + mEsc(m.model) + (m.notes ? ' · ' + mEsc(m.notes) : '') + '</span></td>' +
+    '<td>' + mPill(m.status) + '</td>' +
+    '<td><button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="showMachineNfc(\'' + mEsc(m.id) + '\')">📡 קישור</button></td>' +
+    '<td style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openMachineDetail(\'' + mEsc(m.id) + '\')">פרטים</button>' +
+      '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openMachineForm(\'' + mEsc(m.id) + '\')">ערוך</button>' +
+      '<button class="btn btn-danger" style="font-size:12px;padding:5px 10px" onclick="deleteMachine(\'' + mEsc(m.id) + '\')">מחק</button>' +
+    '</td></tr>').join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">אין מכונות</td></tr>';
+}
+
+function openMachineForm(id) {
+  mEditMachineId = id || null;
+  const m = id ? mMachine(id) : null;
+  document.getElementById('mMachineTitle').textContent = m ? 'עריכת מכונה' : 'הוספת מכונה';
+  document.getElementById('mfNumber').value = m ? m.number : '';
+  document.getElementById('mfModel').value = m ? m.model : '';
+  document.getElementById('mfNotes').value = m ? m.notes : '';
+  openM('mMachineModal');
+}
+
+async function saveMachine() {
+  const number = document.getElementById('mfNumber').value.trim();
+  if (!number) { document.getElementById('mfNumber').focus(); return; }
+  const p = { number:number, model:document.getElementById('mfModel').value.trim(), notes:document.getElementById('mfNotes').value.trim() };
+  if (mEditMachineId) { p.action = 'mUpdateMachine'; p.id = mEditMachineId; } else p.action = 'mAddMachine';
+  const r = await mDo(p, mEditMachineId ? 'המכונה עודכנה' : 'המכונה נוספה');
+  if (r) closeM('mMachineModal');
+}
+
+async function deleteMachine(id) {
+  const m = mMachine(id);
+  if (!confirm('להסיר את מכונה ' + m.number + ' מהצי?\nההיסטוריה שלה תישאר ביומן ובדוחות.')) return;
+  await mDo({ action:'mDeleteMachine', id:id }, 'המכונה הוסרה');
+}
+
+function showMachineNfc(id) {
+  const m = mMachine(id);
+  document.getElementById('nfcItemName').textContent = m.number;
+  document.getElementById('nfcUrl').textContent = M_BASE + m.id;
+  openM('nfcModal');
+}
+
+// ---------- פרטי מכונה והיסטוריה ----------
+let mDetailId = null;
+function openMachineDetail(id) { mDetailId = id; renderMDetail(id); openM('mDetailModal'); }
+
+function renderMDetail(id) {
+  const m = mMachine(id);
+  if (!m) { closeM('mDetailModal'); return; }
+  const r = mOpenRental(m.id);
+  let h = '<div class="modal-title" style="direction:ltr;text-align:right">' + mEsc(m.number) + '</div>';
+  h += '<div style="margin-bottom:14px">' + mPill(m.status) + ' <span style="color:var(--text2);font-size:13px">' + mEsc(m.model) + '</span></div>';
+  if (r) {
+    h += '<div class="card" style="padding:14px">' +
+      '<div><strong>' + mEsc(r.customer) + '</strong>' + (mIsMonthly(r.customer) ? ' <span class="m-pill monthly">חודשית</span>' : '') + '</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-top:4px">' + mEsc(r.address) + (r.contact ? ' · ' + mEsc(r.contact) : '') + '</div>' +
+      '<div style="font-size:13px;margin-top:4px">מתאריך ' + mDate(r.start) + ' · <strong>' + r.daysSoFar + ' ימים</strong></div>' +
+      (r.equipment ? '<div style="font-size:13px;color:var(--text2);margin-top:4px">ציוד: ' + mEsc(r.equipment) + '</div>' : '') +
+      (r.photo ? '<a href="' + mEsc(r.photo) + '" target="_blank"><img src="' + mEsc(r.photo) + '" style="max-width:160px;border-radius:8px;margin-top:8px"></a>' : '') +
+      '</div>';
+  }
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">';
+  if (r) {
+    h += '<button class="btn btn-success" onclick="openRentalModal(\'end\',\'' + mEsc(m.id) + '\')">סיום שכירות</button>';
+    h += '<button class="btn btn-ghost" onclick="openRentalModal(\'edit\',\'' + mEsc(r.id) + '\')">תיקון פרטים</button>';
+  } else if (m.status === MS_W) {
+    h += '<button class="btn btn-primary" onclick="openRentalModal(\'install\',\'' + mEsc(m.id) + '\')">רשום שכירות</button>';
+    h += '<button class="btn btn-ghost" onclick="mSetStatus(\'' + mEsc(m.id) + '\',\'' + MS_M + '\')">לתחזוקה</button>';
+    h += '<button class="btn btn-danger" onclick="mSetStatus(\'' + mEsc(m.id) + '\',\'' + MS_F + '\')">סמן תקולה</button>';
+  } else {
+    h += '<button class="btn btn-success" onclick="mSetStatus(\'' + mEsc(m.id) + '\',\'' + MS_W + '\')">החזר לבית המלאכה</button>';
+    if (m.status !== MS_M) h += '<button class="btn btn-ghost" onclick="mSetStatus(\'' + mEsc(m.id) + '\',\'' + MS_M + '\')">לתחזוקה</button>';
+    if (m.status !== MS_F) h += '<button class="btn btn-danger" onclick="mSetStatus(\'' + mEsc(m.id) + '\',\'' + MS_F + '\')">סמן תקולה</button>';
+  }
+  h += '<button class="btn btn-ghost" onclick="showMachineNfc(\'' + mEsc(m.id) + '\')">📡 קישור</button>';
+  h += '</div>';
+
+  const hist = M.rentals.filter(x => String(x.machineId) === String(m.id)).slice().reverse();
+  h += '<div class="card-title">היסטוריית שכירויות</div>';
+  h += hist.length ? '<div class="table-wrap"><table><thead><tr><th>לקוח</th><th>התחלה</th><th>סיום</th><th>ימים</th><th></th></tr></thead><tbody>' +
+    hist.map(x => '<tr><td>' + mEsc(x.customer) + (x.closeType && x.closeType !== 'סיום' ? '<br><span style="font-size:11px;color:var(--text3)">' + mEsc(x.closeType) + '</span>' : '') + '</td>' +
+      '<td>' + mDate(x.start) + '</td><td>' + (x.end ? mDate(x.end) : '—') + '</td><td>' + (x.end ? x.days : x.daysSoFar) + '</td>' +
+      '<td><button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="openRentalModal(\'edit\',\'' + mEsc(x.id) + '\')">תקן</button></td></tr>').join('') +
+    '</tbody></table></div>' : '<div style="color:var(--text3);font-size:13px;margin-bottom:12px">אין עדיין</div>';
+
+  const logs = M.log.filter(l => l.number === m.number).slice().reverse().slice(0, 50);
+  h += '<div class="card-title" style="margin-top:18px">יומן פעולות</div>';
+  h += logs.length ? logs.map(l => '<div style="font-size:13px;padding:6px 0;border-bottom:1px solid rgba(42,48,69,0.5)">' +
+    '<span style="color:var(--text3)">' + mDate(l.date) + ' ' + mEsc(l.time) + '</span> · <strong>' + mEsc(l.action) + '</strong> · ' + mEsc(l.who) +
+    (l.customer ? ' · ' + mEsc(l.customer) : '') + (l.details ? '<div style="color:var(--text2);font-size:12px">' + mEsc(l.details) + '</div>' : '') + '</div>').join('')
+    : '<div style="color:var(--text3);font-size:13px">אין עדיין</div>';
+  document.getElementById('mDetail').innerHTML = h;
+}
+
+async function mSetStatus(id, status) {
+  if (!confirm('לשנות את המצב ל"' + status + '"?')) return;
+  await mDo({ action:'mSetStatus', id:id, status:status }, 'המצב עודכן');
+}
+
+// ---------- התקנה / סיום / תיקון מהניהול ----------
+function mCustDatalist() {
+  return '<datalist id="mCustDl">' + M.customers.map(c => '<option value="' + mEsc(c.name) + '">').join('') + '</datalist>';
+}
+function mEquipChecks(selected) {
+  if (!M.equipment.length) return '';
+  const sel = String(selected || '').split(',').map(s => s.trim());
+  return '<div class="form-group"><label>ציוד נלווה</label>' + M.equipment.map(e =>
+    '<label style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;color:var(--text);font-size:14px"><input type="checkbox" class="mEq" value="' + mEsc(e) + '"' + (sel.indexOf(e) >= 0 ? ' checked' : '') + ' style="width:16px;height:16px"> ' + mEsc(e) + '</label>').join('') + '</div>';
+}
+function mCheckedEq() { return Array.from(document.querySelectorAll('.mEq:checked')).map(x => x.value).join(', '); }
+function mFillCust() {
+  const c = M.customers.find(x => x.name === document.getElementById('mrCust').value.trim());
+  if (!c) return;
+  const a = document.getElementById('mrAddr'), k = document.getElementById('mrContact');
+  if (!a.value) a.value = c.address || '';
+  if (!k.value) k.value = c.contact || '';
+}
+
+function openRentalModal(mode, id) {
+  const body = document.getElementById('mRentalBody');
+  const save = document.getElementById('mRentalSave');
+  let h = '';
+  if (mode === 'install') {
+    const m = mMachine(id);
+    document.getElementById('mRentalTitle').textContent = 'רישום שכירות – ' + m.number;
+    h += mCustDatalist();
+    h += '<div class="form-group"><label>שם לקוח *</label><input type="text" id="mrCust" list="mCustDl" oninput="mFillCust()" /></div>';
+    h += '<div class="form-group"><label>כתובת *</label><input type="text" id="mrAddr" /></div>';
+    h += '<div class="form-group"><label>איש קשר</label><input type="text" id="mrContact" /></div>';
+    h += '<div class="form-group"><label>תאריך התחלה</label><input type="date" id="mrStart" value="' + mToday() + '" /></div>';
+    h += mEquipChecks('');
+    save.onclick = async () => {
+      const cust = document.getElementById('mrCust').value.trim(), addr = document.getElementById('mrAddr').value.trim();
+      if (!cust || !addr) { showToast('חובה לקוח וכתובת', true); return; }
+      const r = await mDo({ action:'mInstall', id:id, customer:cust, address:addr, contact:document.getElementById('mrContact').value.trim(),
+        date:document.getElementById('mrStart').value, equipment:mCheckedEq() }, 'השכירות נרשמה');
+      if (r) closeM('mRentalModal');
+    };
+  } else if (mode === 'end') {
+    const m = mMachine(id), r = mOpenRental(id);
+    document.getElementById('mRentalTitle').textContent = 'סיום שכירות – ' + m.number;
+    h += '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">לקוח: <strong style="color:var(--text)">' + mEsc(r.customer) + '</strong> · מתאריך ' + mDate(r.start) + '</p>';
+    if (r.equipment) h += '<p style="color:var(--warn);font-size:13px;margin-bottom:14px">לוודא שחזרו: ' + mEsc(r.equipment) + '</p>';
+    h += '<div class="form-group"><label>תאריך איסוף</label><input type="date" id="mrEnd" value="' + mToday() + '" /></div>';
+    save.onclick = async () => {
+      const res = await mDo({ action:'mEnd', id:id, date:document.getElementById('mrEnd').value }, 'השכירות הסתיימה');
+      if (res) { closeM('mRentalModal'); showToast('השכירות הסתיימה: ' + res.days + ' ימים'); }
+    };
+  } else {
+    const r = M.rentals.find(x => String(x.id) === String(id));
+    document.getElementById('mRentalTitle').textContent = 'תיקון שכירות – ' + r.number;
+    h += mCustDatalist();
+    h += '<div class="form-group"><label>שם לקוח</label><input type="text" id="mrCust" list="mCustDl" value="' + mEsc(r.customer) + '" /></div>';
+    h += '<div class="form-group"><label>כתובת</label><input type="text" id="mrAddr" value="' + mEsc(r.address) + '" /></div>';
+    h += '<div class="form-group"><label>איש קשר</label><input type="text" id="mrContact" value="' + mEsc(r.contact) + '" /></div>';
+    h += '<div class="form-row"><div class="form-group"><label>תאריך התחלה</label><input type="date" id="mrStart" value="' + mEsc(r.start) + '" /></div>' +
+         (r.end ? '<div class="form-group"><label>תאריך סיום</label><input type="date" id="mrEnd" value="' + mEsc(r.end) + '" /></div>' : '<div></div>') + '</div>';
+    h += mEquipChecks(r.equipment);
+    h += '<div class="form-group"><label>הערות</label><input type="text" id="mrNotes" value="' + mEsc(r.notes) + '" /></div>';
+    save.onclick = async () => {
+      const p = { action:'mEditRental', rentalId:r.id, customer:document.getElementById('mrCust').value.trim(),
+        address:document.getElementById('mrAddr').value.trim(), contact:document.getElementById('mrContact').value.trim(),
+        start:document.getElementById('mrStart').value, notes:document.getElementById('mrNotes').value.trim() };
+      if (r.end) p.end = document.getElementById('mrEnd').value;
+      if (M.equipment.length) p.equipment = mCheckedEq();
+      const res = await mDo(p, 'התיקון נשמר');
+      if (res) closeM('mRentalModal');
+    };
+  }
+  body.innerHTML = h;
+  openM('mRentalModal');
+}
+
+// ---------- אנשים ----------
+function renderMPeople() {
+  const list = M.people.slice().sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  document.getElementById('mPeopleBody').innerHTML = list.length ? list.map(p =>
+    '<tr><td><strong>' + mEsc(p.name) + '</strong></td>' +
+    '<td><select style="width:auto;padding:5px 8px;font-size:13px" onchange="setRole(\'' + mEsc(p.code) + '\',this.value)">' +
+      '<option value="tech"' + (p.role === 'tech' ? ' selected' : '') + '>טכנאי</option><option value="manager"' + (p.role === 'manager' ? ' selected' : '') + '>מנהל</option></select></td>' +
+    '<td style="font-weight:700;font-size:16px;letter-spacing:2px">' + mEsc(p.code) + '</td>' +
+    '<td style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="resetCode(\'' + mEsc(p.code) + '\',\'' + mEsc(p.name) + '\')">קוד חדש</button>' +
+      '<button class="btn btn-danger" style="font-size:12px;padding:5px 10px" onclick="deletePerson(\'' + mEsc(p.code) + '\',\'' + mEsc(p.name) + '\')">מחק</button>' +
+    '</td></tr>').join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">אין עדיין. להתחיל בהוספת עצמך כמנהל.</td></tr>';
+}
+
+async function addPerson() {
+  const name = document.getElementById('mNewPerson').value.trim();
+  if (!name) { document.getElementById('mNewPerson').focus(); return; }
+  const r = await mDo({ action:'mAddPerson', name:name, role:document.getElementById('mNewRole').value });
+  if (r) { document.getElementById('mNewPerson').value = ''; alert('נוסף: ' + name + '\nהקוד האישי: ' + r.code + '\n\nלמסור לו את הקוד. הוא יזין אותו פעם אחת בטלפון.'); }
+}
+async function resetCode(code, name) {
+  if (!confirm('להפיק קוד חדש ל' + name + '?\nהקוד הישן יפסיק לעבוד מיד.')) return;
+  const r = await mDo({ action:'mResetCode', personCode:code });
+  if (r) alert('הקוד החדש של ' + name + ': ' + r.code);
+}
+async function deletePerson(code, name) {
+  if (!confirm('למחוק את ' + name + '?\nהקוד שלו יפסיק לעבוד. הפעולות שלו בעבר יישארו ביומן.')) return;
+  await mDo({ action:'mDeletePerson', personCode:code }, 'נמחק');
+}
+async function setRole(code, role) { await mDo({ action:'mSetRole', personCode:code, role:role }, 'התפקיד עודכן'); }
+
+// ---------- לקוחות ----------
+function renderMCustomers() {
+  const q = (document.getElementById('mCustSearch').value || '').trim().toLowerCase();
+  let list = M.customers.slice().sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  if (q) list = list.filter(c => (c.name + ' ' + c.address + ' ' + c.contact).toLowerCase().includes(q));
+  document.getElementById('mCustBody').innerHTML = list.length ? list.map((c, i) => {
+    const now = M.rentals.filter(r => r.customer === c.name && !r.end).length;
+    return '<tr><td><strong>' + mEsc(c.name) + '</strong><br><span style="color:var(--text3);font-size:12px">' + mEsc(c.address) + (c.contact ? ' · ' + mEsc(c.contact) : '') + '</span></td>' +
+      '<td>' + (c.monthly ? '<span class="m-pill monthly">חודשית</span>' : '<span style="color:var(--text3)">—</span>') + '</td>' +
+      '<td style="font-weight:700">' + now + '</td>' +
+      '<td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openCustomer(' + M.customers.indexOf(c) + ')">ערוך</button>' +
+      '<button class="btn btn-danger" style="font-size:12px;padding:5px 10px" onclick="deleteCustomer(' + M.customers.indexOf(c) + ')">מחק</button></td></tr>';
+  }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">אין לקוחות עדיין</td></tr>';
+}
+function openCustomer(i) {
+  const c = M.customers[i];
+  mEditCustName = c.name;
+  document.getElementById('mcName').value = c.name;
+  document.getElementById('mcAddr').value = c.address;
+  document.getElementById('mcContact').value = c.contact;
+  document.getElementById('mcMonthly').checked = !!c.monthly;
+  openM('mCustModal');
+}
+async function saveCustomer() {
+  const r = await mDo({ action:'mUpdateCustomer', oldName:mEditCustName, name:document.getElementById('mcName').value.trim(),
+    address:document.getElementById('mcAddr').value.trim(), contact:document.getElementById('mcContact').value.trim(),
+    monthly:document.getElementById('mcMonthly').checked ? '1' : '' }, 'הלקוח עודכן');
+  if (r) closeM('mCustModal');
+}
+async function deleteCustomer(i) {
+  const c = M.customers[i];
+  if (!confirm('למחוק את הלקוח ' + c.name + ' מהרשימה?\nההיסטוריה שלו תישאר.')) return;
+  await mDo({ action:'mDeleteCustomer', name:c.name }, 'הלקוח נמחק');
+}
+
+// ---------- ציוד ----------
+function renderMEquip() {
+  const el = document.getElementById('mEquipList');
+  el.innerHTML = M.equipment.length ? M.equipment.map((e, i) =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(42,48,69,0.5)">' +
+    '<span>' + mEsc(e) + '</span><button class="btn btn-danger" style="font-size:12px;padding:5px 10px" onclick="deleteEquipment(' + i + ')">מחק</button></div>').join('')
+    : '<div style="color:var(--text3);font-size:13px">אין פריטים ברשימה</div>';
+}
+async function addEquipment() {
+  const name = document.getElementById('mNewEquip').value.trim();
+  if (!name) return;
+  const r = await mDo({ action:'mAddEquipment', name:name }, 'נוסף');
+  if (r) document.getElementById('mNewEquip').value = '';
+}
+async function deleteEquipment(i) {
+  const name = M.equipment[i];
+  if (!confirm('למחוק "' + name + '" מהרשימה?')) return;
+  await mDo({ action:'mDeleteEquipment', name:name }, 'נמחק');
 }
 </script>
 </body>
