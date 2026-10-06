@@ -1,6 +1,6 @@
 // ================================================================
 // Apps Script - ניהול מלאי בית מלאכה + מעקב מכונות קרח בהשכרה
-// גיבוי - ספטמבר 2026
+// גיבוי - אוקטובר 2026 (כולל מעקב בונוס טכנאים)
 // Google Sheets ID: 125xRue7T-5WNsinT2fA0zlJCwyz6zyeWOeTo8trdNrM
 // ================================================================
 
@@ -175,14 +175,17 @@ const M_SHEETS = {
   mlog:      ['יומן מכונות', ['תאריך','שעה','מספר מכונה','פעולה','לקוח','מי','פרטים']],
   customers: ['לקוחות', ['שם','כתובת','איש קשר','חודשי']],
   people:    ['אנשים', ['שם','תפקיד','קוד']],
-  equipment: ['ציוד נלווה', ['שם']]
+  equipment: ['ציוד נלווה', ['שם']],
+  bparts:    ['חלקי בונוס', ['שם','בונוס','פעיל']],
+  breports:  ['דיווחי בונוס', ['מזהה','תאריך','שעה','טכנאי','חלק','כמות','בונוס ליחידה','סה"כ','לקוח','הערות','מצב','אושר ע"י','תאריך אישור']]
 };
 
 const MACHINE_ACTIONS = [
   'mCheckCode','mView','mFind','mInstall','mEnd','mTransfer','mSwap','mSetStatus','mEditRental',
   'mAll','mAddMachine','mUpdateMachine','mDeleteMachine',
   'mAddPerson','mResetCode','mDeletePerson','mSetRole',
-  'mUpdateCustomer','mDeleteCustomer','mAddEquipment','mDeleteEquipment'
+  'mUpdateCustomer','mDeleteCustomer','mAddEquipment','mDeleteEquipment',
+  'bInfo','bReport','bCancel','bAll','bAddPart','bUpdatePart','bDeletePart','bSetStatus'
 ];
 
 // פעולות שמשנות נתונים: רצות עם נעילה כדי ששתי סריקות באותו רגע לא יתנגשו
@@ -190,7 +193,8 @@ const WRITE_ACTIONS = [
   'mInstall','mEnd','mTransfer','mSwap','mSetStatus','mEditRental',
   'mAddMachine','mUpdateMachine','mDeleteMachine',
   'mAddPerson','mResetCode','mDeletePerson','mSetRole',
-  'mUpdateCustomer','mDeleteCustomer','mAddEquipment','mDeleteEquipment'
+  'mUpdateCustomer','mDeleteCustomer','mAddEquipment','mDeleteEquipment',
+  'bReport','bCancel','bAddPart','bUpdatePart','bDeletePart','bSetStatus'
 ];
 
 // קבלת נתונים בשליחה (משמש את דף הסריקה, כולל תמונות)
@@ -210,8 +214,12 @@ function authorizeOnce() {
   Logger.log('הכל מוכן');
 }
 
+// בפעולות קריאה בלבד כל גיליון נקרא פעם אחת (מהיר יותר). בפעולות כתיבה תמיד קוראים מחדש
+let _readCache = null;
+
 function machineAction(action, p) {
   const needLock = WRITE_ACTIONS.indexOf(action) >= 0;
+  _readCache = needLock ? null : {};
   const lock = LockService.getScriptLock();
   try {
     if (needLock) lock.waitLock(20000);
@@ -227,6 +235,9 @@ function runMachineAction(action, p) {
   const who = whoIs(p);
   const isManager = who && who.role === 'manager';
   const isAdmin = p.key === ADMIN_KEY;
+
+  // בונוס טכנאים מטופל בנפרד (בתחתית הקובץ)
+  if (String(action).indexOf('b') === 0) return bonusAction(action, p, who, isAdmin);
 
   // ---------- בדיקת קוד אישי ----------
   if (action === 'mCheckCode') {
@@ -528,8 +539,11 @@ function mSheet(key) {
 }
 
 function rowsOf(key) {
+  if (_readCache && _readCache[key]) return _readCache[key];
   const v = mSheet(key).getDataRange().getValues();
-  return v.slice(1).filter(function (r) { return r.join('') !== ''; });
+  const rows = v.slice(1).filter(function (r) { return r.join('') !== ''; });
+  if (_readCache) _readCache[key] = rows;
+  return rows;
 }
 
 // שמירה כטקסט, כדי שגוגל שיטס לא יהפוך מספרים ותאריכים לדברים אחרים
@@ -708,4 +722,149 @@ function savePhoto(b64, label) {
   const f = folder.createFile(blob);
   f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w1200';
+}
+
+// ================================================================
+// בונוס טכנאים על מכירת חלקים
+// טכנאי מדווח מכירה, מנהל מאשר או דוחה בסוף החודש
+// ================================================================
+
+const B_PENDING = 'ממתין';
+const B_OK = 'אושר';
+const B_NO = 'נדחה';
+
+function bPartsList() {
+  return rowsOf('bparts').map(function (r, i) {
+    return {row:i + 2, name:String(r[0]), bonus:Number(r[1]) || 0, active:String(r[2]) !== 'לא'};
+  }).filter(function (x) { return x.name; });
+}
+
+function bReportsList() {
+  return rowsOf('breports').map(function (r, i) {
+    return {
+      row:i + 2, id:String(r[0]), date:iso(r[1]),
+      time:String(r[2] instanceof Date ? Utilities.formatDate(r[2], 'Asia/Jerusalem', 'HH:mm') : r[2]),
+      tech:String(r[3]), part:String(r[4]), qty:Number(r[5]) || 0, unit:Number(r[6]) || 0, total:Number(r[7]) || 0,
+      customer:String(r[8]), notes:String(r[9]), status:String(r[10]) || B_PENDING,
+      approvedBy:String(r[11]), approvedAt:iso(r[12])
+    };
+  });
+}
+
+function bOut(r) {
+  const o = {};
+  Object.keys(r).forEach(function (k) { if (k !== 'row') o[k] = r[k]; });
+  return o;
+}
+
+function bonusAction(action, p, who, isAdmin) {
+
+  // ---------- כל הנתונים לאפליקציית הניהול ----------
+  if (action === 'bAll') {
+    if (!isAdmin) return {success:false, msg:'אין הרשאה'};
+    return {
+      success:true,
+      parts: bPartsList().map(bOut),
+      reports: bReportsList().map(bOut),
+      techs: rowsOf('people').map(function (r) { return String(r[0]); }).filter(String),
+      today: todayIso()
+    };
+  }
+
+  if (!who) return {success:false, msg:'קוד אישי לא תקין. יש להזין קוד מחדש', badCode:true};
+
+  // ---------- דף הטכנאי: רשימת חלקים והדיווחים שלו ----------
+  if (action === 'bInfo') {
+    const month = todayIso().slice(0, 7);
+    const prev = (function () {
+      const a = month.split('-'); let y = +a[0], m = +a[1] - 1;
+      if (m === 0) { m = 12; y--; }
+      return y + '-' + String(m).padStart(2, '0');
+    })();
+    const mine = bReportsList().filter(function (r) {
+      return r.tech === who.name && (r.date.slice(0, 7) === month || r.date.slice(0, 7) === prev);
+    });
+    return {
+      success:true, name:who.name, role:who.role, today:todayIso(),
+      parts: bPartsList().filter(function (x) { return x.active; }).map(function (x) { return {name:x.name, bonus:x.bonus}; }),
+      reports: mine.map(bOut)
+    };
+  }
+
+  // ---------- דיווח מכירה ----------
+  if (action === 'bReport') {
+    const part = bPartsList().filter(function (x) { return x.active && x.name === String(p.part || ''); })[0];
+    if (!part) return {success:false, msg:'יש לבחור חלק מהרשימה'};
+    const qty = parseInt(p.qty, 10);
+    if (!(qty >= 1 && qty <= 99)) return {success:false, msg:'כמות לא תקינה'};
+    const customer = String(p.customer || '').trim();
+    if (!customer) return {success:false, msg:'חובה להזין שם לקוח'};
+    const id = nextId(bReportsList());
+    const total = part.bonus * qty;
+    mSheet('breports').appendRow([id, T(todayIso()), T(nowTime()), T(who.name), T(part.name), qty, part.bonus, total,
+      T(customer), T(String(p.notes || '').trim()), B_PENDING, '', '']);
+    return {success:true, id:id, total:total};
+  }
+
+  // ---------- ביטול דיווח שלי (רק כל עוד לא אושר) ----------
+  if (action === 'bCancel') {
+    const r = bReportsList().filter(function (x) { return x.id === String(p.id); })[0];
+    if (!r) return {success:false, msg:'הדיווח לא נמצא'};
+    if (r.tech !== who.name) return {success:false, msg:'אפשר לבטל רק דיווח שלך'};
+    if (r.status !== B_PENDING) return {success:false, msg:'הדיווח כבר טופל ואי אפשר לבטל'};
+    mSheet('breports').deleteRow(r.row);
+    return {success:true};
+  }
+
+  // מכאן והלאה רק מאפליקציית הניהול
+  if (!isAdmin) return {success:false, msg:'פעולה מאפליקציית הניהול בלבד'};
+
+  // ---------- אישור / דחייה / החזרה לממתין (אחד או כמה יחד) ----------
+  if (action === 'bSetStatus') {
+    const status = String(p.status || '');
+    if ([B_PENDING, B_OK, B_NO].indexOf(status) < 0) return {success:false, msg:'מצב לא תקין'};
+    const ids = String(p.ids || '').split(',').filter(String);
+    if (!ids.length) return {success:false, msg:'לא נבחרו דיווחים'};
+    const sh = mSheet('breports');
+    let n = 0;
+    bReportsList().forEach(function (r) {
+      if (ids.indexOf(r.id) < 0) return;
+      const done = status !== B_PENDING;
+      sh.getRange(r.row, 11, 1, 3).setValues([[status, done ? T(who.name) : '', done ? T(todayIso()) : '']]);
+      n++;
+    });
+    return {success:true, count:n};
+  }
+
+  // ---------- רשימת חלקים ובונוס לכל חלק ----------
+  if (action === 'bAddPart') {
+    const name = String(p.name || '').trim();
+    if (!name) return {success:false, msg:'חובה להזין שם חלק'};
+    const bonus = Number(p.bonus);
+    if (!(bonus >= 0)) return {success:false, msg:'סכום בונוס לא תקין'};
+    if (bPartsList().some(function (x) { return x.name === name; })) return {success:false, msg:'חלק בשם הזה כבר קיים'};
+    mSheet('bparts').appendRow([T(name), bonus, 'כן']);
+    return {success:true};
+  }
+
+  if (action === 'bUpdatePart') {
+    const part = bPartsList().filter(function (x) { return x.name === String(p.oldName || ''); })[0];
+    if (!part) return {success:false, msg:'החלק לא נמצא'};
+    const name = String(p.name || '').trim() || part.name;
+    if (name !== part.name && bPartsList().some(function (x) { return x.name === name; })) return {success:false, msg:'חלק בשם הזה כבר קיים'};
+    const bonus = p.bonus !== undefined && p.bonus !== '' ? Number(p.bonus) : part.bonus;
+    if (!(bonus >= 0)) return {success:false, msg:'סכום בונוס לא תקין'};
+    const active = p.active !== undefined ? (p.active === '1' || p.active === true) : part.active;
+    mSheet('bparts').getRange(part.row, 1, 1, 3).setValues([[T(name), bonus, active ? 'כן' : 'לא']]);
+    return {success:true};
+  }
+
+  if (action === 'bDeletePart') {
+    const part = bPartsList().filter(function (x) { return x.name === String(p.name || ''); })[0];
+    if (!part) return {success:false, msg:'החלק לא נמצא'};
+    mSheet('bparts').deleteRow(part.row);
+    return {success:true};
+  }
+
+  return {success:false, msg:'פעולה לא מוכרת'};
 }

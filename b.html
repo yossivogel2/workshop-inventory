@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1117">
+<title>דיווח מכירה</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap');
+  :root { --bg:#0f1117; --surface:#181c27; --surface2:#1e2333; --border:#2a3045; --accent:#4f8ef7; --success:#22c55e; --danger:#ef4444; --warn:#f59e0b; --text:#e8eaf0; --text2:#8b92a8; --text3:#555e78; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Heebo',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:20px 16px 40px; }
+  .wrap { width:100%; max-width:420px; margin:0 auto; }
+  .center { text-align:center; padding-top:18vh; }
+  .spinner { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 14px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  @keyframes popIn { from{transform:scale(0.6);opacity:0} to{transform:scale(1);opacity:1} }
+  .whoami { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text2); margin-bottom:16px; }
+  .whoami button { background:none; border:none; color:var(--accent); font-family:inherit; font-size:13px; cursor:pointer; }
+  h1 { font-size:24px; font-weight:800; margin-bottom:4px; }
+  h2 { font-size:22px; font-weight:800; text-align:center; margin-bottom:8px; }
+  .sub { color:var(--text2); font-size:14px; margin-bottom:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin:16px 0; }
+  .form-group { margin-bottom:14px; }
+  label { display:block; font-size:13px; color:var(--text2); margin-bottom:6px; font-weight:500; }
+  input[type=text], input[type=password], select { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; color:var(--text); font-family:inherit; font-size:16px; outline:none; }
+  input:focus, select:focus { border-color:var(--accent); }
+  .code-input { text-align:center; font-size:28px !important; letter-spacing:10px; }
+  .parts { display:flex; flex-direction:column; gap:8px; }
+  .part { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:16px; cursor:pointer; text-align:right; font-family:inherit; color:var(--text); width:100%; }
+  .part .amt { color:var(--success); font-weight:700; white-space:nowrap; }
+  .part.sel { border-color:var(--accent); background:rgba(79,142,247,0.12); }
+  .qty { display:flex; align-items:center; gap:12px; }
+  .qty button { width:52px; height:52px; border-radius:12px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:26px; cursor:pointer; font-family:inherit; }
+  .qty b { font-size:28px; min-width:40px; text-align:center; }
+  .btn { width:100%; padding:16px; border-radius:14px; border:none; font-family:inherit; font-size:17px; font-weight:700; cursor:pointer; margin-top:10px; display:block; }
+  .btn:active { transform:scale(0.98); }
+  .btn.go { background:var(--success); color:#fff; }
+  .btn.blue { background:var(--accent); color:#fff; }
+  .btn.ghost { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn:disabled { opacity:0.6; }
+  .err { color:var(--danger); font-size:14px; min-height:20px; margin-top:8px; text-align:center; }
+  .big { font-size:72px; text-align:center; animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); margin-bottom:10px; }
+  .msg { color:var(--text2); font-size:15px; text-align:center; line-height:1.6; margin-bottom:20px; }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text2); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+  .tabs button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sum { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .sum div { background:var(--surface2); border-radius:10px; padding:12px; text-align:center; }
+  .sum b { display:block; font-size:24px; }
+  .sum span { font-size:12px; color:var(--text2); }
+  .rep { padding:12px 0; border-bottom:1px solid rgba(42,48,69,0.6); }
+  .rep:last-child { border-bottom:none; }
+  .rep-top { display:flex; justify-content:space-between; gap:8px; font-size:15px; }
+  .rep-sub { color:var(--text2); font-size:13px; margin-top:3px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .pill.p { background:rgba(245,158,11,0.15); color:var(--warn); }
+  .pill.ok { background:rgba(34,197,94,0.15); color:var(--success); }
+  .pill.no { background:rgba(239,68,68,0.15); color:var(--danger); }
+  .cancel { background:none; border:none; color:var(--danger); font-family:inherit; font-size:13px; cursor:pointer; }
+  .empty { text-align:center; color:var(--text3); padding:20px 0; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="center"><div class="spinner"></div><div style="color:var(--text2)">טוען...</div></div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygaRdZdOdVVjiGIAF90zYFl2x6kruyRIJqPzrYIs0TF-pMtRmXYdbJd1AUxdVozGXB7g/exec';
+const MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+let me = null;        // {name, code}
+let info = null;      // חלקים ודיווחים
+let sel = null;       // החלק שנבחר
+let qty = 1;
+let monthTab = 0;     // 0 = החודש, 1 = חודש קודם
+
+const app = document.getElementById('app');
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showDate(s) { const a = String(s || '').split('-'); return a.length === 3 ? a[2] + '/' + a[1] : (s || ''); }
+function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function money(n) { return '₪' + (Math.round(n * 100) / 100).toLocaleString('he-IL'); }
+
+async function api(params) {
+  const res = await fetch(SCRIPT_URL + '?' + new URLSearchParams(params).toString());
+  return res.json();
+}
+
+function loading(text) {
+  app.innerHTML = '<div class="center"><div class="spinner"></div><div style="color:var(--text2)">' + esc(text || 'טוען...') + '</div></div>';
+}
+
+function showError(title, text) {
+  app.innerHTML = '<div class="center"><div class="big">⚠️</div><h2>' + esc(title) + '</h2><div class="msg">' + esc(text) + '</div>' +
+    '<button class="btn ghost" onclick="start()">נסה שוב</button></div>';
+}
+
+// ---------- קוד אישי (אותו קוד כמו במעקב המכונות, נזכר בטלפון) ----------
+function askCode(note) {
+  app.innerHTML = '<div class="center" style="padding-top:10vh"><div class="big">🔑</div><h2>קוד אישי</h2>' +
+    '<div class="msg">' + esc(note || 'בפעם הראשונה בטלפון הזה יש להזין את הקוד האישי שלך') + '</div>' +
+    '<input type="password" inputmode="numeric" maxlength="6" class="code-input" id="codeIn" autocomplete="off" onkeydown="if(event.key===\'Enter\')submitCode()">' +
+    '<button class="btn blue" id="codeBtn" onclick="submitCode()">כניסה</button>' +
+    '<div class="err" id="codeErr"></div></div>';
+  setTimeout(() => { const el = document.getElementById('codeIn'); if (el) el.focus(); }, 100);
+}
+
+async function submitCode() {
+  const code = val('codeIn');
+  if (!code) return;
+  const btn = document.getElementById('codeBtn');
+  btn.disabled = true; btn.textContent = 'בודק...';
+  try {
+    const r = await api({ action:'bInfo', code:code });
+    if (!r.success) {
+      document.getElementById('codeErr').textContent = 'קוד שגוי';
+      btn.disabled = false; btn.textContent = 'כניסה';
+      return;
+    }
+    store('mCode', code);
+    me = { name:r.name, code:code };
+    info = r;
+    showForm();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט'); }
+}
+
+function logout() { store('mCode', null); me = null; askCode(); }
+
+async function start() {
+  const code = load('mCode');
+  if (!code) { askCode(); return; }
+  loading();
+  try {
+    const r = await api({ action:'bInfo', code:code });
+    if (!r.success) { store('mCode', null); askCode(r.badCode ? 'הקוד השמור כבר לא תקף. יש להזין קוד חדש' : r.msg); return; }
+    me = { name:r.name, code:code };
+    info = r;
+    showForm();
+  } catch (e) { showError('שגיאת חיבור', 'בדוק חיבור לאינטרנט'); }
+}
+
+async function refresh() {
+  try {
+    const r = await api({ action:'bInfo', code:me.code });
+    if (r.success) info = r;
+  } catch (e) {}
+}
+
+// ---------- טופס דיווח ----------
+function showForm() {
+  sel = null; qty = 1;
+  const parts = info.parts || [];
+  let h = '<div class="whoami"><span>👤 ' + esc(me.name) + '</span><button onclick="logout()">לא אני</button></div>' +
+    '<h1>💰 דיווח מכירת חלק</h1><div class="sub">החלק נמכר ללקוח? מדווחים כאן ומקבלים בונוס אחרי אישור</div>';
+
+  if (!parts.length) {
+    h += '<div class="card"><div class="empty">עדיין אין חלקים ברשימת הבונוס. יש לפנות למנהל.</div></div>';
+  } else {
+    h += '<div class="form-group"><label>איזה חלק נמכר?</label><div class="parts">' +
+      parts.map((p, i) => '<button class="part" id="part' + i + '" onclick="pickPart(' + i + ')"><span>' + esc(p.name) + '</span><span class="amt">' + money(p.bonus) + '</span></button>').join('') +
+      '</div></div>' +
+      '<div class="form-group"><label>כמות</label><div class="qty"><button onclick="setQty(-1)">−</button><b id="qtyNum">1</b><button onclick="setQty(1)">+</button></div></div>' +
+      '<div class="form-group"><label>שם לקוח</label><input type="text" id="cust" placeholder="למשל: מלון הים"></div>' +
+      '<div class="form-group"><label>הערה (רשות)</label><input type="text" id="notes" placeholder="מספר חשבונית, פרטים נוספים..."></div>' +
+      '<button class="btn go" id="sendBtn" onclick="send()">שלח דיווח</button><div class="err" id="formErr"></div>';
+  }
+  h += '<div class="card" id="mine"></div>';
+  app.innerHTML = h;
+  renderMine();
+}
+
+function pickPart(i) {
+  sel = info.parts[i];
+  document.querySelectorAll('.part').forEach(b => b.classList.remove('sel'));
+  document.getElementById('part' + i).classList.add('sel');
+  document.getElementById('formErr').textContent = '';
+}
+
+function setQty(d) {
+  qty = Math.min(99, Math.max(1, qty + d));
+  document.getElementById('qtyNum').textContent = qty;
+}
+
+async function send() {
+  const err = document.getElementById('formErr');
+  if (!sel) { err.textContent = 'יש לבחור חלק'; return; }
+  const customer = val('cust');
+  if (!customer) { err.textContent = 'יש להזין שם לקוח'; document.getElementById('cust').focus(); return; }
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'שולח...';
+  try {
+    const r = await api({ action:'bReport', code:me.code, part:sel.name, qty:qty, customer:customer, notes:val('notes') });
+    if (!r.success) {
+      if (r.badCode) { store('mCode', null); askCode('הקוד כבר לא תקף. יש להזין קוד חדש'); return; }
+      err.textContent = r.msg || 'שגיאה'; btn.disabled = false; btn.textContent = 'שלח דיווח'; return;
+    }
+    const name = sel.name, q = qty;
+    await refresh();
+    app.innerHTML = '<div class="center" style="padding-top:12vh"><div class="big">✅</div><h2>הדיווח נשלח</h2>' +
+      '<div class="msg">' + esc(name) + (q > 1 ? ' × ' + q : '') + ' ל' + esc(customer) + '<br>בונוס ' + money(r.total) + ' ממתין לאישור המנהל</div>' +
+      '<button class="btn blue" onclick="showForm()">דיווח נוסף</button></div>';
+  } catch (e) { err.textContent = 'שגיאת חיבור, נסה שוב'; btn.disabled = false; btn.textContent = 'שלח דיווח'; }
+}
+
+// ---------- הדיווחים שלי ----------
+function monthKey(offset) {
+  const a = String(info.today || '').split('-');
+  let y = +a[0], m = +a[1] - offset;
+  if (m <= 0) { m += 12; y--; }
+  return { key: y + '-' + String(m).padStart(2, '0'), label: MONTHS[m - 1] };
+}
+
+function setMonth(i) { monthTab = i; renderMine(); }
+
+function renderMine() {
+  const box = document.getElementById('mine');
+  if (!box) return;
+  const cur = monthKey(0), prev = monthKey(1);
+  const mk = monthTab === 0 ? cur : prev;
+  const list = (info.reports || []).filter(r => String(r.date).slice(0, 7) === mk.key).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  const ok = list.filter(r => r.status === 'אושר').reduce((s, r) => s + r.total, 0);
+  const pend = list.filter(r => r.status === 'ממתין').reduce((s, r) => s + r.total, 0);
+  let h = '<div class="tabs"><button class="' + (monthTab === 0 ? 'on' : '') + '" onclick="setMonth(0)">' + cur.label + '</button>' +
+    '<button class="' + (monthTab === 1 ? 'on' : '') + '" onclick="setMonth(1)">' + prev.label + '</button></div>' +
+    '<div class="sum"><div><b style="color:var(--success)">' + money(ok) + '</b><span>אושר</span></div>' +
+    '<div><b style="color:var(--warn)">' + money(pend) + '</b><span>ממתין לאישור</span></div></div>';
+  if (!list.length) h += '<div class="empty">אין דיווחים בחודש הזה</div>';
+  else h += list.map(r => {
+    const cls = r.status === 'אושר' ? 'ok' : r.status === 'נדחה' ? 'no' : 'p';
+    return '<div class="rep"><div class="rep-top"><span>' + esc(r.part) + (r.qty > 1 ? ' × ' + r.qty : '') + '</span><b>' + money(r.total) + '</b></div>' +
+      '<div class="rep-sub"><span>' + showDate(r.date) + ' · ' + esc(r.customer) + '</span><span>' +
+      (r.status === 'ממתין' ? '<button class="cancel" onclick="cancelRep(\'' + esc(r.id) + '\')">ביטול</button> ' : '') +
+      '<span class="pill ' + cls + '">' + esc(r.status) + '</span></span></div></div>';
+  }).join('');
+  box.innerHTML = h;
+}
+
+async function cancelRep(id) {
+  if (!confirm('לבטל את הדיווח?')) return;
+  try {
+    const r = await api({ action:'bCancel', code:me.code, id:id });
+    if (!r.success) { alert(r.msg || 'שגיאה'); return; }
+    await refresh();
+    renderMine();
+  } catch (e) { alert('שגיאת חיבור'); }
+}
+
+start();
+</script>
+</body>
+</html>

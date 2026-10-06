@@ -128,6 +128,14 @@
   .m-pill.f { background:rgba(239,68,68,0.15); color:var(--danger); }
   .m-pill.monthly { background:rgba(167,139,250,0.15); color:#a78bfa; }
   #nfcModal { z-index:250; }
+  .b-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .b-pill.p { background:rgba(245,158,11,0.15); color:var(--warn); }
+  .b-pill.ok { background:rgba(34,197,94,0.15); color:var(--success); }
+  .b-pill.no { background:rgba(239,68,68,0.15); color:var(--danger); }
+  .b-act { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 9px; font-family:inherit; font-size:12px; cursor:pointer; color:var(--text2); margin-left:4px; }
+  .b-act.ok { color:var(--success); border-color:rgba(34,197,94,0.4); }
+  .b-act.no { color:var(--danger); border-color:rgba(239,68,68,0.4); }
+  .b-chk { width:18px; height:18px; accent-color:var(--accent); }
 </style>
 </head>
 <body>
@@ -154,6 +162,7 @@
     <button onclick="showTab('alerts',this)" id="alertsTab">התראות</button>
     <button onclick="showTab('admin',this)">ניהול</button>
     <button onclick="showTab('machines',this);loadMachines()">מכונות</button>
+    <button onclick="showTab('bonus',this);loadBonus()">בונוסים</button>
   </nav>
   <main>
 
@@ -363,7 +372,101 @@
       </div>
     </div>
 
+    <div class="tab-content" id="tab-bonus">
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="log-filter-btn b-sub active" onclick="bSub('reports',this)">דיווחים</button>
+        <button class="log-filter-btn b-sub" onclick="bSub('summary',this)">סיכום חודשי</button>
+        <button class="log-filter-btn b-sub" onclick="bSub('parts',this)">חלקים ובונוס</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select id="bMonth" onchange="renderBonusAll()" style="width:auto"></select>
+        <select id="bYear" onchange="renderBonusAll()" style="width:auto"></select>
+      </div>
+
+      <!-- דיווחים -->
+      <div class="b-pane" id="b-reports">
+        <div class="stats">
+          <div class="stat warn"><div class="stat-num" id="bPend">—</div><div class="stat-label">ממתינים לאישור</div></div>
+          <div class="stat ok"><div class="stat-num" id="bOk">—</div><div class="stat-label">אושרו</div></div>
+          <div class="stat info"><div class="stat-num" id="bSum">—</div><div class="stat-label">בונוס מאושר החודש</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <select id="bTech" onchange="renderBReports()" style="width:auto;min-width:140px"></select>
+            <select id="bStatus" onchange="renderBReports()" style="width:auto">
+              <option value="">כל המצבים</option>
+              <option value="ממתין" selected>ממתין</option>
+              <option value="אושר">אושר</option>
+              <option value="נדחה">נדחה</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer"><input type="checkbox" class="b-chk" id="bAllChk" onchange="bToggleAll(this.checked)" /> סמן הכל</label>
+            <div style="flex:1"></div>
+            <button class="btn btn-success" onclick="bBulk('אושר')">✓ אשר מסומנים</button>
+            <button class="btn btn-danger" onclick="bBulk('נדחה')">✕ דחה מסומנים</button>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th></th><th>תאריך</th><th>טכנאי</th><th>חלק</th><th>לקוח</th><th>בונוס</th><th>מצב</th><th>פעולות</th></tr></thead>
+            <tbody id="bReportsBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- סיכום חודשי -->
+      <div class="b-pane" id="b-summary" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;flex-wrap:wrap">
+            <div class="card-title" style="margin-bottom:0">בונוס לתשלום לפי טכנאי</div>
+            <button class="btn btn-ghost" onclick="printBonus()">🖨️ הדפס דוח</button>
+          </div>
+          <div id="bSummary"></div>
+        </div>
+      </div>
+
+      <!-- חלקים ובונוס -->
+      <div class="b-pane" id="b-parts" style="display:none">
+        <div class="card">
+          <div class="card-title">הוספת חלק</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="bNewPart" placeholder="שם החלק" style="flex:1;min-width:160px" />
+            <input type="number" id="bNewBonus" placeholder="בונוס בשקלים" min="0" step="0.5" style="width:140px" />
+            <button class="btn btn-primary" onclick="addBonusPart()">+ הוסף</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">רשימת החלקים</div>
+          <p style="color:var(--text2);font-size:13px;margin-bottom:12px">שינוי סכום משפיע רק על דיווחים חדשים. חלק "מוסתר" לא מופיע לטכנאי אבל נשאר בדיווחים הישנים.</p>
+          <div class="table-wrap">
+            <table><thead><tr><th>חלק</th><th>בונוס</th><th>מצב</th><th>פעולות</th></tr></thead>
+            <tbody id="bPartsBody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">קישור לדף הדיווח של הטכנאים</div>
+          <p style="color:var(--text2);font-size:13px;margin-bottom:8px">לשלוח לטכנאים פעם אחת. הם שומרים אותו במסך הבית ונכנסים עם הקוד האישי שלהם.</p>
+          <div class="nfc-url-box" id="bLink"></div>
+          <button class="btn btn-ghost" style="margin-top:10px" onclick="copyBonusLink()">העתק קישור</button>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- BONUS PART MODAL -->
+<div class="modal-overlay" id="bPartModal">
+  <div class="modal">
+    <div class="modal-title">עריכת חלק</div>
+    <div class="form-group"><label>שם החלק</label><input type="text" id="bpName" /></div>
+    <div class="form-group"><label>בונוס בשקלים</label><input type="number" id="bpBonus" min="0" step="0.5" /></div>
+    <label style="display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer"><input type="checkbox" id="bpActive" style="width:18px;height:18px" /> מופיע לטכנאים</label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeM('bPartModal')">ביטול</button>
+      <button class="btn btn-success" onclick="saveBonusPart()">שמור</button>
+    </div>
+  </div>
 </div>
 
 <!-- ADD MODAL -->
@@ -961,28 +1064,54 @@ async function mCall(params) {
   return res.json();
 }
 
+// הודעה על המסך כשהשרת של גוגל מתעורר לאט
+function mSlowNote(show) {
+  let el = document.getElementById('mSlowNote');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mSlowNote';
+    el.style.cssText = 'position:absolute;margin-top:90px;color:#e8eaf0;font-size:14px;text-align:center';
+    el.textContent = 'השרת מתעורר, עוד כמה שניות...';
+    document.getElementById('loadingOverlay').appendChild(el);
+  }
+  el.style.display = show ? 'block' : 'none';
+}
+
+// שמירה: מציג תוצאה מיד, ומרענן את הנתונים ברקע
 async function mDo(params, okMsg) {
   showLoading(true);
+  const slow = setTimeout(() => mSlowNote(true), 5000);
+  const done = () => { clearTimeout(slow); mSlowNote(false); showLoading(false); };
   try {
     const r = await mCall(params);
-    if (!r.success) { showToast(r.msg || 'שגיאה', true); showLoading(false); return null; }
+    done();
+    if (!r.success) { showToast(r.msg || r.error || 'שגיאה', true); return null; }
     if (okMsg) showToast(okMsg);
-    await loadMachines(true);
-    showLoading(false);
+    mBackgroundReload();
     return r;
-  } catch (e) { showToast('שגיאת חיבור', true); showLoading(false); return null; }
+  } catch (e) { done(); showToast('שגיאת חיבור', true); return null; }
+}
+
+async function mBackgroundReload() {
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = '↻ מעדכן...';
+  const ok = await loadMachines(true);
+  btn.textContent = '↻ רענן';
+  if (!ok) showToast('נשמר, אבל הרשימה לא התעדכנה. ללחוץ רענן', true);
 }
 
 async function loadMachines(silent) {
   if (!silent && !mLoaded) document.getElementById('mStatusList').innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>טוען...</div>';
   try {
     const r = await mCall({ action:'mAll' });
-    if (!r.success) { showToast(r.msg || 'שגיאה בטעינת מכונות', true); return; }
+    if (!r.success) { showToast(r.msg || r.error || 'שגיאה בטעינת מכונות', true); return false; }
     M = r;
     mLoaded = true;
     renderMachinesAll();
+    return true;
   } catch (e) {
     if (!silent) document.getElementById('mStatusList').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>שגיאה בטעינה. לבדוק שהסקריפט פורס מחדש.</div>';
+    return false;
   }
 }
 
@@ -1391,6 +1520,222 @@ async function deleteEquipment(i) {
   const name = M.equipment[i];
   if (!confirm('למחוק "' + name + '" מהרשימה?')) return;
   await mDo({ action:'mDeleteEquipment', name:name }, 'נמחק');
+}
+</script>
+<script>
+// ================================================================
+// בונוס טכנאים על מכירת חלקים
+// ================================================================
+const B_LINK = 'https://yossivogel2.github.io/workshop-inventory/b.html';
+let B = { parts:[], reports:[], techs:[], today:'' };
+let bLoaded = false;
+let bEditPart = null;
+
+function bMoney(n) { return '₪' + (Math.round((+n || 0) * 100) / 100).toLocaleString('he-IL'); }
+function bPillCls(st) { return st === 'אושר' ? 'ok' : st === 'נדחה' ? 'no' : 'p'; }
+
+async function loadBonus(silent) {
+  if (!silent && !bLoaded) document.getElementById('bReportsBody').innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">⏳</div>טוען...</div></td></tr>';
+  try {
+    const r = await mCall({ action:'bAll' });
+    if (!r.success) { showToast(r.msg || 'שגיאה בטעינת בונוסים', true); return; }
+    B = r;
+    if (!bLoaded) bFillMonth();
+    bLoaded = true;
+    renderBonusAll();
+  } catch (e) {
+    if (!silent) document.getElementById('bReportsBody').innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">⚠️</div>שגיאה בטעינה. לבדוק שהסקריפט פורס מחדש.</div></td></tr>';
+  }
+}
+
+document.getElementById('syncBtn').addEventListener('click', () => { if (bLoaded) loadBonus(true); });
+
+async function bDo(params, okMsg) {
+  showLoading(true);
+  try {
+    const r = await mCall(params);
+    if (!r.success) { showToast(r.msg || 'שגיאה', true); showLoading(false); return null; }
+    if (okMsg) showToast(okMsg);
+    await loadBonus(true);
+    showLoading(false);
+    return r;
+  } catch (e) { showToast('שגיאת חיבור', true); showLoading(false); return null; }
+}
+
+function bSub(name, btn) {
+  document.querySelectorAll('.b-pane').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.b-sub').forEach(b => b.classList.remove('active'));
+  document.getElementById('b-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+
+// ברירת מחדל: החודש הקודם, כי מאשרים בסוף חודש / תחילת החודש הבא
+function bFillMonth() {
+  const a = String(B.today || '').split('-');
+  const y = +a[0] || new Date().getFullYear(), m = +a[1] || (new Date().getMonth() + 1);
+  const day = +a[2] || 1;
+  let defM = m, defY = y;
+  if (day <= 10) { defM = m - 1; if (defM === 0) { defM = 12; defY = y - 1; } }
+  document.getElementById('bMonth').innerHTML = HEBREW_MONTHS.map((n, i) => '<option value="' + (i + 1) + '"' + (i + 1 === defM ? ' selected' : '') + '>' + n + '</option>').join('');
+  const years = new Set([y, y - 1]);
+  B.reports.forEach(r => { const yy = +String(r.date).slice(0, 4); if (yy) years.add(yy); });
+  document.getElementById('bYear').innerHTML = Array.from(years).sort((p, q) => q - p).map(v => '<option value="' + v + '"' + (v === defY ? ' selected' : '') + '>' + v + '</option>').join('');
+}
+
+function bMonthKey() {
+  return document.getElementById('bYear').value + '-' + String(document.getElementById('bMonth').value).padStart(2, '0');
+}
+
+function bMonthReports() {
+  const k = bMonthKey();
+  return B.reports.filter(r => String(r.date).slice(0, 7) === k);
+}
+
+function renderBonusAll() {
+  renderBReports(); renderBSummary(); renderBParts();
+  document.getElementById('bLink').textContent = B_LINK;
+}
+
+// ---------- דיווחים ----------
+function renderBReports() {
+  const all = bMonthReports();
+  document.getElementById('bPend').textContent = all.filter(r => r.status === 'ממתין').length;
+  document.getElementById('bOk').textContent = all.filter(r => r.status === 'אושר').length;
+  document.getElementById('bSum').textContent = bMoney(all.filter(r => r.status === 'אושר').reduce((s, r) => s + r.total, 0));
+
+  const techSel = document.getElementById('bTech');
+  const cur = techSel.value;
+  const techs = Array.from(new Set(B.techs.concat(B.reports.map(r => r.tech)))).filter(Boolean);
+  techSel.innerHTML = '<option value="">כל הטכנאים</option>' + techs.map(t => '<option value="' + mEsc(t) + '"' + (t === cur ? ' selected' : '') + '>' + mEsc(t) + '</option>').join('');
+
+  const t = techSel.value, st = document.getElementById('bStatus').value;
+  let list = all;
+  if (t) list = list.filter(r => r.tech === t);
+  if (st) list = list.filter(r => r.status === st);
+  list = list.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  document.getElementById('bAllChk').checked = false;
+
+  const body = document.getElementById('bReportsBody');
+  if (!list.length) { body.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div>אין דיווחים להצגה</div></td></tr>'; return; }
+  body.innerHTML = list.map(r =>
+    '<tr><td><input type="checkbox" class="b-chk b-row" value="' + mEsc(r.id) + '" /></td>' +
+    '<td style="white-space:nowrap">' + mDate(r.date) + '</td>' +
+    '<td>' + mEsc(r.tech) + '</td>' +
+    '<td>' + mEsc(r.part) + (r.qty > 1 ? ' × ' + r.qty : '') + (r.notes ? '<div style="color:var(--text3);font-size:12px">' + mEsc(r.notes) + '</div>' : '') + '</td>' +
+    '<td>' + mEsc(r.customer) + '</td>' +
+    '<td style="font-weight:700;white-space:nowrap">' + bMoney(r.total) + '</td>' +
+    '<td><span class="b-pill ' + bPillCls(r.status) + '">' + mEsc(r.status) + '</span></td>' +
+    '<td style="white-space:nowrap">' +
+      (r.status !== 'אושר' ? '<button class="b-act ok" onclick="bSet(\'' + mEsc(r.id) + '\',\'אושר\')">אשר</button>' : '') +
+      (r.status !== 'נדחה' ? '<button class="b-act no" onclick="bSet(\'' + mEsc(r.id) + '\',\'נדחה\')">דחה</button>' : '') +
+      (r.status !== 'ממתין' ? '<button class="b-act" onclick="bSet(\'' + mEsc(r.id) + '\',\'ממתין\')">החזר</button>' : '') +
+    '</td></tr>').join('');
+}
+
+function bToggleAll(on) { document.querySelectorAll('.b-row').forEach(c => c.checked = on); }
+
+async function bSet(id, status) { await bDo({ action:'bSetStatus', ids:id, status:status }, 'עודכן'); }
+
+async function bBulk(status) {
+  const ids = Array.from(document.querySelectorAll('.b-row:checked')).map(c => c.value);
+  if (!ids.length) { showToast('לא סומנו דיווחים', true); return; }
+  if (!confirm((status === 'אושר' ? 'לאשר ' : 'לדחות ') + ids.length + ' דיווחים?')) return;
+  await bDo({ action:'bSetStatus', ids:ids.join(','), status:status }, 'עודכנו ' + ids.length + ' דיווחים');
+}
+
+// ---------- סיכום חודשי ----------
+function bSummaryData() {
+  const all = bMonthReports();
+  const groups = {};
+  all.forEach(r => { (groups[r.tech] = groups[r.tech] || []).push(r); });
+  const names = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'he'));
+  return { names, groups, all };
+}
+
+function bSummaryHtml(d, forPrint) {
+  if (!d.names.length) return '<div class="empty"><div class="empty-icon">📄</div>אין דיווחים בחודש הזה</div>';
+  const grand = d.all.filter(r => r.status === 'אושר').reduce((s, r) => s + r.total, 0);
+  const pendAll = d.all.filter(r => r.status === 'ממתין').length;
+  let h = '<table style="margin-bottom:22px"><thead><tr><th>טכנאי</th><th>חלקים שאושרו</th><th>בונוס לתשלום</th>' + (forPrint ? '' : '<th>ממתינים</th>') + '</tr></thead><tbody>' +
+    d.names.map(n => {
+      const ok = d.groups[n].filter(r => r.status === 'אושר');
+      const pend = d.groups[n].filter(r => r.status === 'ממתין').length;
+      return '<tr><td style="font-weight:700">' + mEsc(n) + '</td><td>' + ok.reduce((s, r) => s + r.qty, 0) + '</td><td style="font-weight:700">' + bMoney(ok.reduce((s, r) => s + r.total, 0)) + '</td>' +
+        (forPrint ? '' : '<td>' + (pend ? '<span class="b-pill p">' + pend + '</span>' : '—') + '</td>') + '</tr>';
+    }).join('') +
+    '<tr><td style="font-weight:700">סה"כ</td><td></td><td style="font-weight:700">' + bMoney(grand) + '</td>' + (forPrint ? '' : '<td></td>') + '</tr></tbody></table>';
+  if (!forPrint && pendAll) h = '<div class="alert warn"><span class="alert-icon">⚠️</span>יש ' + pendAll + ' דיווחים שעדיין ממתינים לאישור בחודש הזה. הם לא נכללים בסכום.</div>' + h;
+  h += d.names.map(n => {
+    const ok = d.groups[n].filter(r => r.status === 'אושר');
+    if (!ok.length) return '';
+    return '<div style="margin-bottom:22px"><div style="font-weight:700;font-size:16px;margin-bottom:8px">' + mEsc(n) + '</div>' +
+      '<table><thead><tr><th>תאריך</th><th>חלק</th><th>כמות</th><th>לקוח</th><th>בונוס</th></tr></thead><tbody>' +
+      ok.sort((a, b) => a.date.localeCompare(b.date)).map(r => '<tr><td>' + mDate(r.date) + '</td><td>' + mEsc(r.part) + '</td><td>' + r.qty + '</td><td>' + mEsc(r.customer) + '</td><td>' + bMoney(r.total) + '</td></tr>').join('') +
+      '<tr><td colspan="4" style="font-weight:700">סה"כ</td><td style="font-weight:700">' + bMoney(ok.reduce((s, r) => s + r.total, 0)) + '</td></tr></tbody></table></div>';
+  }).join('');
+  return h;
+}
+
+function renderBSummary() {
+  document.getElementById('bSummary').innerHTML = '<div class="table-wrap">' + bSummaryHtml(bSummaryData(), false) + '</div>';
+}
+
+function printBonus() {
+  const d = bSummaryData();
+  const mo = +document.getElementById('bMonth').value, yr = document.getElementById('bYear').value;
+  const title = 'דוח בונוס טכנאים – ' + HEBREW_MONTHS[mo - 1] + ' ' + yr;
+  const win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>' + mEsc(title) + '</title><style>' +
+    'body{font-family:Arial,sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}.sub{color:#555;font-size:13px;margin-bottom:20px}' +
+    'table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}th,td{border:1px solid #ccc;padding:7px 9px;text-align:right}th{background:#f0f0f0}</style></head><body>' +
+    '<h1>' + mEsc(title) + '</h1><div class="sub">דיווחים מאושרים בלבד · הופק בתאריך ' + new Date().toLocaleDateString('he-IL') + '</div>' +
+    bSummaryHtml(d, true) + '</body></html>');
+  win.document.close(); win.focus(); win.print();
+}
+
+// ---------- חלקים ובונוס ----------
+function renderBParts() {
+  const body = document.getElementById('bPartsBody');
+  if (!B.parts.length) { body.innerHTML = '<tr><td colspan="4"><div class="empty">עדיין אין חלקים. מוסיפים למעלה.</div></td></tr>'; return; }
+  body.innerHTML = B.parts.map((p, i) =>
+    '<tr><td style="font-weight:600">' + mEsc(p.name) + '</td><td>' + bMoney(p.bonus) + '</td>' +
+    '<td>' + (p.active ? '<span class="b-pill ok">פעיל</span>' : '<span class="b-pill no">מוסתר</span>') + '</td>' +
+    '<td style="white-space:nowrap"><button class="btn btn-ghost" style="padding:5px 12px;font-size:13px" onclick="openBonusPart(' + i + ')">עריכה</button> ' +
+    '<button class="btn btn-danger" style="padding:5px 12px;font-size:13px" onclick="deleteBonusPart(' + i + ')">מחק</button></td></tr>').join('');
+}
+
+async function addBonusPart() {
+  const name = document.getElementById('bNewPart').value.trim();
+  const bonus = document.getElementById('bNewBonus').value;
+  if (!name) { showToast('חובה להזין שם חלק', true); return; }
+  if (bonus === '' || +bonus < 0) { showToast('חובה להזין סכום בונוס', true); return; }
+  const r = await bDo({ action:'bAddPart', name:name, bonus:bonus }, 'החלק נוסף');
+  if (r) { document.getElementById('bNewPart').value = ''; document.getElementById('bNewBonus').value = ''; }
+}
+
+function openBonusPart(i) {
+  const p = B.parts[i];
+  bEditPart = p.name;
+  document.getElementById('bpName').value = p.name;
+  document.getElementById('bpBonus').value = p.bonus;
+  document.getElementById('bpActive').checked = p.active;
+  openM('bPartModal');
+}
+
+async function saveBonusPart() {
+  const r = await bDo({ action:'bUpdatePart', oldName:bEditPart, name:document.getElementById('bpName').value.trim(),
+    bonus:document.getElementById('bpBonus').value, active:document.getElementById('bpActive').checked ? '1' : '0' }, 'נשמר');
+  if (r) closeM('bPartModal');
+}
+
+async function deleteBonusPart(i) {
+  const p = B.parts[i];
+  if (!confirm('למחוק את "' + p.name + '" מהרשימה? דיווחים קיימים לא יימחקו.\nאפשר במקום זה להסתיר אותו דרך עריכה.')) return;
+  await bDo({ action:'bDeletePart', name:p.name }, 'נמחק');
+}
+
+function copyBonusLink() {
+  navigator.clipboard.writeText(B_LINK).then(() => showToast('הקישור הועתק')).catch(() => showToast('לא הצלחתי להעתיק', true));
 }
 </script>
 </body>
