@@ -171,8 +171,8 @@ const ST_F = 'תקולה בבדיקה';
 
 const M_SHEETS = {
   machines:  ['מכונות', ['מזהה','מספר מכונה','דגם','מצב','הערות']],
-  rentals:   ['שכירויות', ['מזהה','מזהה מכונה','מספר מכונה','לקוח','כתובת','איש קשר','תאריך התחלה','תאריך סיום','ימים','ציוד','תמונה','פתח','סגר','אופן סגירה','הערות']],
-  mlog:      ['יומן מכונות', ['תאריך','שעה','מספר מכונה','פעולה','לקוח','מי','פרטים']],
+  rentals:   ['שכירויות', ['מזהה','מזהה מכונה','מספר מכונה','לקוח','כתובת','איש קשר','תאריך התחלה','תאריך סיום','ימים','ציוד','תמונה','פתח','סגר','אופן סגירה','הערות','התחלה ללקוח']],
+  mlog:     ['יומן מכונות', ['תאריך','שעה','מספר מכונה','פעולה','לקוח','מי','פרטים']],
   customers: ['לקוחות', ['שם','כתובת','איש קשר','חודשי']],
   people:    ['אנשים', ['שם','תפקיד','קוד']],
   equipment: ['ציוד נלווה', ['שם']],
@@ -317,10 +317,10 @@ function runMachineAction(action, p) {
     if (!r) return {success:false, msg:'אין שכירות פתוחה למכונה הזאת'};
     const end = pickDate(p.date, isManager);
     if (end < r.start) return {success:false, msg:'תאריך הסיום לפני תאריך ההתחלה'};
-    const d = closeRental(r, end, who.name, 'סיום');
+    const d = closeRental(r, end, who.name, 'סיום', true);
     setMachineStatus(m.id, ST_W);
-    addLog(m.number, 'סיום שכירות', r.customer, who.name, d + ' ימים (' + showDate(r.start) + ' עד ' + showDate(end) + ')');
-    return {success:true, days:d, customer:r.customer, start:r.start, end:end, equipment:r.equipment};
+    addLog(m.number, 'סיום שכירות', r.customer, who.name, d + ' ימים (' + showDate(r.chainStart) + ' עד ' + showDate(end) + ')');
+    return {success:true, days:d, customer:r.customer, start:r.chainStart, end:end, equipment:r.equipment};
   }
 
   // ---------- העברה ישירה ללקוח אחר ----------
@@ -335,7 +335,7 @@ function runMachineAction(action, p) {
     const date = pickDate(p.date, isManager);
     if (date < r.start) return {success:false, msg:'התאריך לפני תחילת השכירות הקודמת'};
     const photo = savePhoto(p.photo, m.number + '_' + date);
-    const d = closeRental(r, date, who.name, 'העברה ל' + c.name);
+    const d = closeRental(r, date, who.name, 'העברה ל' + c.name, true);
     ensureCustomer(c);
     openNewRental(m, c, date, String(p.equipment || ''), photo, who.name, String(p.notes || ''));
     setMachineStatus(m.id, ST_R);
@@ -353,15 +353,21 @@ function runMachineAction(action, p) {
     if (!newM) return {success:false, msg:'המכונה החלופית לא נמצאה'};
     if (String(newM.id) === String(oldM.id)) return {success:false, msg:'יש לבחור מכונה אחרת'};
     if (newM.status !== ST_W || openRental(newM.id)) return {success:false, msg:'המכונה החלופית לא פנויה'};
+    const reason = String(p.reason || '').trim();
+    if (!reason) return {success:false, msg:'חובה לכתוב סיבת החלפה'};
+    const oldStatus = p.oldStatus ? String(p.oldStatus) : ST_F;
+    if ([ST_F, ST_M].indexOf(oldStatus) < 0) return {success:false, msg:'מצב לא תקין למכונה הישנה'};
     const date = pickDate(p.date, isManager);
     if (date < r.start) return {success:false, msg:'התאריך לפני תחילת השכירות'};
-    const d = closeRental(r, date, who.name, 'הוחלפה ב־' + newM.number);
-    setMachineStatus(oldM.id, ST_F);
-    openNewRental(newM, {name:r.customer, address:r.address, contact:r.contact}, date, r.equipment, '', who.name, 'מחליפה את ' + oldM.number);
+    const d = closeRental(r, date, who.name, SWAP_CLOSE + newM.number, false);
+    mSheet('rentals').getRange(r.row, 15).setValue(T((r.notes ? r.notes + ' · ' : '') + 'סיבה: ' + reason));
+    setMachineStatus(oldM.id, oldStatus);
+    openNewRental(newM, {name:r.customer, address:r.address, contact:r.contact}, date, r.equipment, '', who.name, 'מחליפה את ' + oldM.number + '. סיבה: ' + reason, r.chainStart);
     setMachineStatus(newM.id, ST_R);
-    addLog(oldM.number, 'הוחלפה (תקולה)', r.customer, who.name, 'הוחלפה במכונה ' + newM.number + ' אחרי ' + d + ' ימים');
-    addLog(newM.number, 'התקנה כמחליפה', r.customer, who.name, 'במקום מכונה ' + oldM.number);
-    return {success:true, days:d, customer:r.customer, newNumber:newM.number, monthly:isMonthly(r.customer)};
+    const totalDays = daysBetween(r.chainStart, date);
+    addLog(oldM.number, 'הוחלפה (' + reason + ')', r.customer, who.name, 'הוחלפה במכונה ' + newM.number + '. ימי שכירות ללקוח עד ההחלפה: ' + totalDays + ' (מכונה זו: ' + d + ')');
+    addLog(newM.number, 'התקנה כמחליפה', r.customer, who.name, 'במקום מכונה ' + oldM.number + '. סיבה: ' + reason);
+    return {success:true, days:d, totalDays:totalDays, chainStart:r.chainStart, customer:r.customer, newNumber:newM.number, monthly:isMonthly(r.customer)};
   }
 
   // מכאן והלאה רק מנהל
@@ -391,16 +397,23 @@ function runMachineAction(action, p) {
     if (r.end && validIso(p.end)) end = p.end;
     if (!r.end && validIso(p.end)) return {success:false, msg:'כדי לסגור שכירות יש להשתמש ב"סיום שכירות"'};
     if (end && end < start) return {success:false, msg:'תאריך הסיום לפני תאריך ההתחלה'};
+    // התחלה ללקוח: תיקון ידני אם נשלח ערך שונה. בשכירות רגילה (לא המשך החלפה) היא עוקבת אחרי תאריך ההתחלה
+    let chainStart = r.chainStart;
+    if (validIso(p.chainStart) && p.chainStart !== r.chainStart) chainStart = p.chainStart;
+    else if (r.chainStart === r.start && start !== r.start) chainStart = start;
+    if (chainStart > start) return {success:false, msg:'ההתחלה ללקוח לא יכולה להיות אחרי תאריך ההתחלה'};
     const equipment = p.equipment !== undefined ? String(p.equipment) : r.equipment;
     const notes = p.notes !== undefined ? String(p.notes) : r.notes;
     if (name !== r.customer) ensureCustomer({name:name, address:address, contact:contact});
     const sh = mSheet('rentals');
-    sh.getRange(r.row, 4, 1, 6).setValues([[T(name), T(address), T(contact), T(start), T(end), end ? daysBetween(start, end) : '']]);
+    const days = !end ? '' : daysBetween(isSwapClosed(r.closeType) ? start : chainStart, end);
+    sh.getRange(r.row, 4, 1, 6).setValues([[T(name), T(address), T(contact), T(start), T(end), days]]);
     sh.getRange(r.row, 10).setValue(T(equipment));
-    sh.getRange(r.row, 15).setValue(T(notes));
+    sh.getRange(r.row, 15, 1, 2).setValues([[T(notes), T(chainStart)]]);
     const changes = [];
     if (name !== r.customer) changes.push('לקוח: ' + r.customer + ' ← ' + name);
     if (start !== r.start) changes.push('התחלה: ' + showDate(r.start) + ' ← ' + showDate(start));
+    if (chainStart !== r.chainStart) changes.push('התחלה ללקוח: ' + showDate(r.chainStart) + ' ← ' + showDate(chainStart));
     if (end !== r.end) changes.push('סיום: ' + showDate(r.end) + ' ← ' + showDate(end));
     if (address !== r.address) changes.push('כתובת עודכנה');
     if (contact !== r.contact) changes.push('איש קשר עודכן');
@@ -534,8 +547,22 @@ function mSheet(key) {
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, def[1].length).setFontWeight('bold');
     sh.setRightToLeft(true);
+  } else if (key === 'rentals') {
+    ensureRentalsChainColumn(sh);
   }
   return sh;
+}
+
+// עמודה 16 "התחלה ללקוח": בפעם הראשונה מגבים את הלשונית ומוסיפים את הכותרת
+let _chainColChecked = false;
+function ensureRentalsChainColumn(sh) {
+  if (_chainColChecked) return;
+  _chainColChecked = true;
+  const headers = M_SHEETS.rentals[1];
+  if (sh.getMaxColumns() < headers.length) sh.insertColumnsAfter(sh.getMaxColumns(), headers.length - sh.getMaxColumns());
+  if (String(sh.getRange(1, headers.length).getValue()).trim() === headers[headers.length - 1]) return;
+  if (!_mss.getSheetByName('שכירויות-גיבוי')) sh.copyTo(_mss).setName('שכירויות-גיבוי');
+  sh.getRange(1, headers.length).setValue(headers[headers.length - 1]).setFontWeight('bold');
 }
 
 function rowsOf(key) {
@@ -633,15 +660,33 @@ function setMachineStatus(id, status) {
   if (m) mSheet('machines').getRange(m.row, 4).setValue(status);
 }
 
+const SWAP_CLOSE = 'הוחלפה ב־';
+function isSwapClosed(closeType) { return String(closeType || '').indexOf(SWAP_CLOSE) === 0; }
+
 function rentalsList() {
-  return rowsOf('rentals').map(function (r, i) {
+  const list = rowsOf('rentals').map(function (r, i) {
     return {
       row:i + 2, id:String(r[0]), machineId:String(r[1]), number:String(r[2]),
       customer:String(r[3]), address:String(r[4]), contact:String(r[5]),
       start:iso(r[6]), end:iso(r[7]), days:r[8], equipment:String(r[9]), photo:String(r[10]),
-      openedBy:String(r[11]), closedBy:String(r[12]), closeType:String(r[13]), notes:String(r[14])
+      openedBy:String(r[11]), closedBy:String(r[12]), closeType:String(r[13]), notes:String(r[14]),
+      chainStart:iso(r[15])
     };
   });
+  list.forEach(function (r) { r.chainStart = resolveChainStart(r, list, 0); });
+  return list;
+}
+
+// התחלה ללקוח: אם העמודה ריקה והשכירות היא המשך של החלפה ("מחליפה את X"), לוקחים מהשכירות הקודמת בשרשרת
+function resolveChainStart(r, list, depth) {
+  if (validIso(r.chainStart)) return r.chainStart;
+  if (depth < 20 && /^מחליפה את/.test(r.notes)) {
+    const prev = list.filter(function (p) {
+      return p !== r && p.customer === r.customer && p.closeType === SWAP_CLOSE + r.number && p.end && p.end <= r.start;
+    }).sort(function (a, b) { return a.end < b.end ? 1 : -1; })[0];
+    if (prev) return resolveChainStart(prev, list, depth + 1);
+  }
+  return r.start;
 }
 
 function openRental(machineId) {
@@ -652,20 +697,21 @@ function openRental(machineId) {
 function rentalOut(r, customers) {
   const o = {};
   Object.keys(r).forEach(function (k) { if (k !== 'row') o[k] = r[k]; });
-  o.daysSoFar = r.end ? r.days : daysBetween(r.start, todayIso());
+  o.daysSoFar = daysBetween(r.chainStart, r.end || todayIso());
   const c = (customers || customersList()).filter(function (x) { return x.name === r.customer; })[0];
   o.monthly = !!(c && c.monthly);
   return o;
 }
 
-function openNewRental(m, c, start, equipment, photo, by, notes) {
+function openNewRental(m, c, start, equipment, photo, by, notes, chainStart) {
   const id = nextId(rentalsList());
-  mSheet('rentals').appendRow([id, m.id, T(m.number), T(c.name), T(c.address), T(c.contact), T(start), '', '', T(equipment), photo || '', T(by), '', '', T(notes)]);
+  mSheet('rentals').appendRow([id, m.id, T(m.number), T(c.name), T(c.address), T(c.contact), T(start), '', '', T(equipment), photo || '', T(by), '', '', T(notes), T(chainStart || start)]);
   return id;
 }
 
-function closeRental(r, end, by, type) {
-  const d = daysBetween(r.start, end);
+// wholeChain: סיום או העברה סופרים את כל הימים אצל הלקוח. החלפה סופרת רק את המקטע של המכונה הזאת
+function closeRental(r, end, by, type, wholeChain) {
+  const d = daysBetween(wholeChain ? r.chainStart : r.start, end);
   const sh = mSheet('rentals');
   sh.getRange(r.row, 8, 1, 2).setValues([[T(end), d]]);
   sh.getRange(r.row, 13, 1, 2).setValues([[T(by), T(type)]]);

@@ -216,6 +216,7 @@ function renderMachine() {
     h += '<div class="row"><span class="k">כתובת</span><span class="v">' + esc(r.address) + '</span></div>';
     if (r.contact) h += '<div class="row"><span class="k">איש קשר</span><span class="v">' + esc(r.contact) + '</span></div>';
     h += '<div class="row"><span class="k">מתאריך</span><span class="v">' + showDate(r.start) + '</span></div>';
+    if (r.chainStart && r.chainStart !== r.start) h += '<div class="row"><span class="k">אצל הלקוח</span><span class="v">מתאריך ' + showDate(r.chainStart) + ' (כולל החלפת מכונה)</span></div>';
     if (r.equipment) h += '<div class="row"><span class="k">ציוד נלווה</span><span class="v">' + esc(r.equipment) + '</span></div>';
     if (r.photo) h += '<img class="photo" src="' + esc(r.photo) + '" onerror="this.style.display=\'none\'">';
     h += '</div>';
@@ -360,7 +361,7 @@ function showEnd() {
   const m = data.machine, r = data.rental;
   let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
   h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div><h2 style="margin-top:10px">סיום שכירות</h2>';
-  h += '<div class="infobox">לקוח: <b>' + esc(r.customer) + '</b><br>מתאריך ' + showDate(r.start) + ', כבר ' + daysText(r.daysSoFar) + '.<br>המכונה תחזור למצב "בבית המלאכה".</div>';
+  h += '<div class="infobox">לקוח: <b>' + esc(r.customer) + '</b><br>מתאריך ' + showDate(r.chainStart || r.start) + (r.chainStart && r.chainStart !== r.start ? ' (כולל החלפת מכונה)' : '') + ', כבר ' + daysText(r.daysSoFar) + '.<br>המכונה תחזור למצב "בבית המלאכה".</div>';
   if (r.equipment) {
     h += '<div class="section-title">לוודא שחזרו עם המכונה</div><div class="checks">' +
       r.equipment.split(',').map(s => s.trim()).filter(Boolean).map(e => '<label><input type="checkbox">' + esc(e) + '</label>').join('') + '</div>';
@@ -390,12 +391,14 @@ function showSwap() {
   const av = data.available || [];
   let h = whoBar() + '<button class="back" onclick="renderMachine()">→ חזרה</button>';
   h += '<div class="mnum" style="font-size:22px">' + esc(m.number) + '</div><h2 style="margin-top:10px">החלפת מכונה תקולה</h2>';
-  h += '<div class="warnbox">המכונה הזאת תסומן "תקולה בבדיקה".<br>המכונה החלופית תיכנס אצל <b>' + esc(r.customer) + '</b> עם אותם פרטים' + (r.monthly ? ', כולל שכירות חודשית' : '') + '.</div>';
+  h += '<div class="warnbox">המכונה החלופית תיכנס אצל <b>' + esc(r.customer) + '</b> עם אותם פרטים' + (r.monthly ? ', כולל שכירות חודשית' : '') + '.<br>ימי השכירות ימשיכו מ־<b>' + showDate(r.chainStart || r.start) + '</b>, לא מתחילים מחדש.</div>';
   if (!av.length) {
     h += '<div class="card" style="text-align:center;color:var(--text2)">אין כרגע מכונה פנויה בבית המלאכה</div>';
   } else {
     h += '<div class="form-group"><label>המכונה החלופית</label><select id="fNew"><option value="">בחר מכונה...</option>' +
       av.map(x => '<option value="' + esc(x.id) + '">' + esc(x.number) + (x.model ? ' · ' + esc(x.model) : '') + '</option>').join('') + '</select></div>';
+    h += '<div class="form-group"><label>סיבת ההחלפה *</label><input type="text" id="fReason" autocomplete="off" placeholder="למשל: לא מקרר, רעש, נזילה"></div>';
+    h += '<div class="form-group"><label>מצב המכונה הישנה</label><select id="fOldStatus"><option value="' + ST_F + '">' + ST_F + '</option><option value="' + ST_M + '">' + ST_M + '</option></select></div>';
     h += dateField('תאריך ההחלפה');
     h += '<button class="btn warn" id="sendBtn" onclick="submitSwap()">⇄ אישור החלפה</button>';
   }
@@ -405,16 +408,20 @@ function showSwap() {
 
 async function submitSwap() {
   const newId = val('fNew');
-  if (!newId) { document.getElementById('fNew').classList.add('bad'); return; }
+  const reason = val('fReason');
+  document.getElementById('fNew').classList.toggle('bad', !newId);
+  document.getElementById('fReason').classList.toggle('bad', !reason);
+  if (!newId) { document.getElementById('fNew').focus(); return; }
+  if (!reason) { document.getElementById('fReason').focus(); return; }
   const btn = document.getElementById('sendBtn');
   btn.disabled = true; btn.textContent = 'שומר...';
-  const p = { action:'mSwap', id:machineId, newId:newId, code:me.code };
+  const p = { action:'mSwap', id:machineId, newId:newId, code:me.code, reason:reason, oldStatus:val('fOldStatus') };
   if (isMgr()) p.date = val('fDate');
   try {
     const r = await apiPost(p);
     if (r.badCode) { store('mCode', null); askCode(r.msg); return; }
     if (!r.success) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert(r.msg || 'שגיאה'); return; }
-    showSuccess('ההחלפה נרשמה', 'מכונה <b class="ltr">' + esc(r.newNumber) + '</b> מותקנת עכשיו אצל <b>' + esc(r.customer) + '</b>.<br>המכונה הקודמת סומנה כתקולה (' + daysText(r.days) + ' בשכירות).' +
+    showSuccess('ההחלפה נרשמה', 'מכונה <b class="ltr">' + esc(r.newNumber) + '</b> מותקנת עכשיו אצל <b>' + esc(r.customer) + '</b>.<br>המכונה הקודמת סומנה "' + esc(p.oldStatus) + '".<br>ימי שכירות עד היום: <b>' + r.totalDays + '</b>.' +
       '<br><br>לא לשכוח לסרוק גם את המדבקה של המכונה החדשה כדי לוודא.');
   } catch (e) { btn.disabled = false; btn.textContent = 'נסה שוב'; alert('שגיאת חיבור. בדוק אינטרנט ונסה שוב'); }
 }

@@ -1052,6 +1052,15 @@ function mPill(st) {
   const cls = st === MS_R ? 'r' : st === MS_M ? 'm' : st === MS_F ? 'f' : 'w';
   return '<span class="m-pill ' + cls + '">' + mEsc(st) + '</span>';
 }
+const M_SWAP_CLOSE = 'הוחלפה ב־';
+function mIsSwapClosed(r) { return String(r.closeType || '').indexOf(M_SWAP_CLOSE) === 0; }
+// שכירות שנסגרה בהחלפה והמחליפה שלה קיימת: מוצגת בדוח כמידע בלבד, והימים נספרים בשכירות האחרונה בשרשרת
+function mSwapSuccessor(r) {
+  if (!mIsSwapClosed(r) || !r.end) return null;
+  const num = r.closeType.slice(M_SWAP_CLOSE.length);
+  return M.rentals.find(s => s.id !== r.id && s.customer === r.customer && s.number === num && s.chainStart === r.chainStart && s.start >= r.start) || null;
+}
+function mReason(notes) { const m = /סיבה:\s*(.*)$/.exec(String(notes || '')); return m ? m[1].trim() : ''; }
 function mOpenRental(machineId) { return M.rentals.filter(r => String(r.machineId) === String(machineId) && !r.end).pop() || null; }
 function mIsMonthly(name) { const c = M.customers.find(x => x.name === name); return !!(c && c.monthly); }
 function mMachine(id) { return M.machines.find(x => String(x.id) === String(id)); }
@@ -1209,11 +1218,13 @@ function reportData() {
   const mEnd = yr + '-' + String(mo).padStart(2, '0') + '-' + String(last).padStart(2, '0');
   const today = mToday();
   const rows = M.rentals.filter(r => r.start && (!cust || r.customer === cust)).map(r => {
+    const info = !!mSwapSuccessor(r);
     const realEnd = r.end || today;
-    const a = r.start > mStart ? r.start : mStart;
+    const from = info ? r.start : (r.chainStart || r.start);
+    const a = from > mStart ? from : mStart;
     const b = realEnd < mEnd ? realEnd : mEnd;
     if (a > b) return null;
-    return { r:r, from:a, to:b, inMonth:mDays(a, b), total:r.end ? r.days : mDays(r.start, today) };
+    return { r:r, from:a, to:b, info:info, inMonth:info ? 0 : mDays(a, b), total:info ? 0 : mDays(from, realEnd) };
   }).filter(Boolean);
   const groups = {};
   rows.forEach(x => { (groups[x.r.customer] = groups[x.r.customer] || []).push(x); });
@@ -1230,8 +1241,16 @@ function reportTable(d, forPrint) {
     return '<div style="margin-bottom:22px">' +
       '<div style="font-weight:700;font-size:16px;margin-bottom:8px">' + mEsc(n) + (mIsMonthly(n) ? ' <span class="m-pill monthly">שכירות חודשית</span>' : '') + '</div>' +
       '<table><thead><tr><th>מכונה</th><th>התחלה</th><th>סיום</th><th>ימים בחודש</th><th>סה"כ ימים</th><th>הערה</th></tr></thead><tbody>' +
-      rows.map(x => '<tr><td style="direction:ltr;text-align:right">' + mEsc(x.r.number) + '</td><td>' + mDate(x.r.start) + '</td><td>' + (x.r.end ? mDate(x.r.end) : 'עדיין בשכירות') + '</td>' +
-        '<td style="font-weight:700">' + x.inMonth + '</td><td>' + x.total + '</td><td>' + mEsc(x.r.closeType && x.r.closeType !== 'סיום' ? x.r.closeType : '') + '</td></tr>').join('') +
+      rows.map(x => {
+        if (x.info) {
+          const reason = mReason(x.r.notes);
+          return '<tr style="color:' + (forPrint ? '#777' : 'var(--text3)') + '"><td style="direction:ltr;text-align:right">' + mEsc(x.r.number) + '</td><td>' + mDate(x.r.start) + '</td><td>' + mDate(x.r.end) + '</td>' +
+            '<td>—</td><td>—</td><td>' + mEsc(x.r.closeType) + (reason ? '<br>סיבה: ' + mEsc(reason) : '') + '<br>(לא נספרת, הימים נספרים במכונה החלופית)</td></tr>';
+        }
+        const cont = x.r.chainStart && x.r.chainStart !== x.r.start;
+        return '<tr><td style="direction:ltr;text-align:right">' + mEsc(x.r.number) + '</td><td>' + mDate(x.r.start) + (cont ? '<br><span style="font-size:11px;font-weight:normal">אצל הלקוח מ־' + mDate(x.r.chainStart) + '</span>' : '') + '</td><td>' + (x.r.end ? mDate(x.r.end) : 'עדיין בשכירות') + '</td>' +
+          '<td style="font-weight:700">' + x.inMonth + '</td><td>' + x.total + '</td><td>' + mEsc(x.r.closeType && x.r.closeType !== 'סיום' ? x.r.closeType : '') + '</td></tr>';
+      }).join('') +
       '<tr><td colspan="3" style="font-weight:700">סה"כ ימים בחודש</td><td style="font-weight:700">' + sum + '</td><td colspan="2"></td></tr>' +
       '</tbody></table></div>';
   }).join('');
@@ -1318,7 +1337,7 @@ function renderMDetail(id) {
     h += '<div class="card" style="padding:14px">' +
       '<div><strong>' + mEsc(r.customer) + '</strong>' + (mIsMonthly(r.customer) ? ' <span class="m-pill monthly">חודשית</span>' : '') + '</div>' +
       '<div style="color:var(--text2);font-size:13px;margin-top:4px">' + mEsc(r.address) + (r.contact ? ' · ' + mEsc(r.contact) : '') + '</div>' +
-      '<div style="font-size:13px;margin-top:4px">מתאריך ' + mDate(r.start) + ' · <strong>' + r.daysSoFar + ' ימים</strong></div>' +
+      '<div style="font-size:13px;margin-top:4px">' + (r.chainStart && r.chainStart !== r.start ? 'אצל הלקוח מתאריך ' + mDate(r.chainStart) + ' (כולל החלפת מכונה, במכונה הזאת מ־' + mDate(r.start) + ')' : 'מתאריך ' + mDate(r.start)) + ' · <strong>' + r.daysSoFar + ' ימים</strong></div>' +
       (r.equipment ? '<div style="font-size:13px;color:var(--text2);margin-top:4px">ציוד: ' + mEsc(r.equipment) + '</div>' : '') +
       (r.photo ? '<a href="' + mEsc(r.photo) + '" target="_blank"><img src="' + mEsc(r.photo) + '" style="max-width:160px;border-radius:8px;margin-top:8px"></a>' : '') +
       '</div>';
@@ -1343,7 +1362,7 @@ function renderMDetail(id) {
   h += '<div class="card-title">היסטוריית שכירויות</div>';
   h += hist.length ? '<div class="table-wrap"><table><thead><tr><th>לקוח</th><th>התחלה</th><th>סיום</th><th>ימים</th><th></th></tr></thead><tbody>' +
     hist.map(x => '<tr><td>' + mEsc(x.customer) + (x.closeType && x.closeType !== 'סיום' ? '<br><span style="font-size:11px;color:var(--text3)">' + mEsc(x.closeType) + '</span>' : '') + '</td>' +
-      '<td>' + mDate(x.start) + '</td><td>' + (x.end ? mDate(x.end) : '—') + '</td><td>' + (x.end ? x.days : x.daysSoFar) + '</td>' +
+      '<td>' + mDate(x.start) + '</td><td>' + (x.end ? mDate(x.end) : '—') + '</td><td>' + (mIsSwapClosed(x) ? x.days : x.daysSoFar) + '</td>' +
       '<td><button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="openRentalModal(\'edit\',\'' + mEsc(x.id) + '\')">תקן</button></td></tr>').join('') +
     '</tbody></table></div>' : '<div style="color:var(--text3);font-size:13px;margin-bottom:12px">אין עדיין</div>';
 
@@ -1403,7 +1422,7 @@ function openRentalModal(mode, id) {
   } else if (mode === 'end') {
     const m = mMachine(id), r = mOpenRental(id);
     document.getElementById('mRentalTitle').textContent = 'סיום שכירות – ' + m.number;
-    h += '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">לקוח: <strong style="color:var(--text)">' + mEsc(r.customer) + '</strong> · מתאריך ' + mDate(r.start) + '</p>';
+    h += '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">לקוח: <strong style="color:var(--text)">' + mEsc(r.customer) + '</strong> · מתאריך ' + mDate(r.chainStart || r.start) + (r.chainStart && r.chainStart !== r.start ? ' (כולל החלפת מכונה)' : '') + '</p>';
     if (r.equipment) h += '<p style="color:var(--warn);font-size:13px;margin-bottom:14px">לוודא שחזרו: ' + mEsc(r.equipment) + '</p>';
     h += '<div class="form-group"><label>תאריך איסוף</label><input type="date" id="mrEnd" value="' + mToday() + '" /></div>';
     save.onclick = async () => {
@@ -1419,12 +1438,14 @@ function openRentalModal(mode, id) {
     h += '<div class="form-group"><label>איש קשר</label><input type="text" id="mrContact" value="' + mEsc(r.contact) + '" /></div>';
     h += '<div class="form-row"><div class="form-group"><label>תאריך התחלה</label><input type="date" id="mrStart" value="' + mEsc(r.start) + '" /></div>' +
          (r.end ? '<div class="form-group"><label>תאריך סיום</label><input type="date" id="mrEnd" value="' + mEsc(r.end) + '" /></div>' : '<div></div>') + '</div>';
+    h += '<div class="form-group"><label>התחלה ללקוח (ימי השכירות נספרים מתאריך זה)</label><input type="date" id="mrChain" value="' + mEsc(r.chainStart || r.start) + '" /></div>';
     h += mEquipChecks(r.equipment);
     h += '<div class="form-group"><label>הערות</label><input type="text" id="mrNotes" value="' + mEsc(r.notes) + '" /></div>';
     save.onclick = async () => {
       const p = { action:'mEditRental', rentalId:r.id, customer:document.getElementById('mrCust').value.trim(),
         address:document.getElementById('mrAddr').value.trim(), contact:document.getElementById('mrContact').value.trim(),
-        start:document.getElementById('mrStart').value, notes:document.getElementById('mrNotes').value.trim() };
+        start:document.getElementById('mrStart').value, chainStart:document.getElementById('mrChain').value,
+        notes:document.getElementById('mrNotes').value.trim() };
       if (r.end) p.end = document.getElementById('mrEnd').value;
       if (M.equipment.length) p.equipment = mCheckedEq();
       const res = await mDo(p, 'התיקון נשמר');
